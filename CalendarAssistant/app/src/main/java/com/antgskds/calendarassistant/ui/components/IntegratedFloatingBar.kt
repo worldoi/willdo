@@ -33,6 +33,16 @@ import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.data.model.HomeEntryKey
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Text
 
 // 统一高度设定为 68dp
 val IntegratedFloatingBarHeight = 68.dp
@@ -65,6 +75,9 @@ fun IntegratedFloatingBar(
     onSearchClick: () -> Unit,
     onImageClick: () -> Unit,
     onEditClick: () -> Unit,
+    actionPanelOpen: Boolean = false,
+    onActionPanelToggle: () -> Unit = {},
+    onActionPanelClose: () -> Unit = {},
     backgroundMode: Boolean = false,
     miuiBlurEnabled: Boolean = false,
     cardAlphaPercent: Int = MySettings.APP_BACKGROUND_CARD_ALPHA_DEFAULT_PERCENT,
@@ -147,7 +160,23 @@ fun IntegratedFloatingBar(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        FloatingContainer(
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            AnimatedVisibility(
+                visible = actionPanelOpen,
+                enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+            ) {
+                ActionExpandPanel(
+                    onSearchClick = onSearchClick,
+                    onImageClick = onImageClick,
+                    onEditClick = onEditClick,
+                    onCloseClick = onActionPanelClose
+                )
+            }
+            FloatingContainer(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(barTotalHeight),
@@ -219,9 +248,21 @@ fun IntegratedFloatingBar(
                             )
                         }
                     }
+                    // 加号操作按钮：浅蓝主色，点击展开/收起操作面板
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FloatingActionIcon(
+                            onClick = onActionPanelToggle
+                        )
+                    }
                 }
             }
         }
+    }
     }
 }
 
@@ -264,5 +305,76 @@ private fun HydrogenNavIcon(
                 modifier = Modifier.size(26.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun ActionExpandPanel(
+    onSearchClick: () -> Unit,
+    onImageClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onCloseClick: () -> Unit
+) {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val panelBg = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = panelBg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+            ActionMenuItem(icon = Icons.Default.Search, label = "搜索", onClick = onSearchClick)
+            ActionMenuItem(icon = Icons.Default.Image, label = "图片", onClick = onImageClick)
+            ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", onClick = onEditClick)
+            ActionMenuItem(icon = Icons.Default.Close, label = "关闭", onClick = onCloseClick)
+        }
+    }
+}
+
+@Composable
+private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+    val haptics = rememberAppHaptics()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { haptics.click(); onClick() }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun FloatingActionIcon(onClick: () -> Unit) {
+    val haptics = rememberAppHaptics()
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .clickable { haptics.click(); onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "操作菜单",
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.size(26.dp)
+        )
     }
 }

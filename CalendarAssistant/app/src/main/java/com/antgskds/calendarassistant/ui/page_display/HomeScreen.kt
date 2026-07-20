@@ -163,6 +163,7 @@ fun HomeScreen(
     var scheduleProgress by remember { mutableFloatStateOf(0f) }
     var scheduleOffsetPx by remember { mutableFloatStateOf(0f) }
     var isActionExpanded by remember { mutableStateOf(false) }
+    var isActionMenuOpen by remember { mutableStateOf(false) }
     var searchRequestId by remember { mutableIntStateOf(0) }
     var imageRequestId by remember { mutableIntStateOf(0) }
 
@@ -469,28 +470,36 @@ fun HomeScreen(
             selectedPageKey = effectiveSelectedPageKey,
             onMenuClick = {
                 isActionExpanded = false
+                isActionMenuOpen = false
                 isSidebarOpen = !isSidebarOpen
             },
             onPageClick = { pageKey ->
                 isActionExpanded = false
+                isActionMenuOpen = false
                 isSidebarOpen = false
                 onSelectedPageKeyChange(pageKey)
             },
             onSearchClick = {
                 isActionExpanded = false
+                isActionMenuOpen = false
                 isSidebarOpen = false
                 searchRequestId += 1
             },
             onImageClick = {
                 isActionExpanded = false
+                isActionMenuOpen = false
                 isSidebarOpen = false
                 imageRequestId += 1
             },
             onEditClick = {
                 isActionExpanded = false
+                isActionMenuOpen = false
                 isSidebarOpen = false
                 openPrimaryCreateDialog()
             },
+            actionPanelOpen = isActionMenuOpen,
+            onActionPanelToggle = { isActionMenuOpen = !isActionMenuOpen },
+            onActionPanelClose = { isActionMenuOpen = false },
             navInset = bottomInset,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -502,18 +511,6 @@ fun HomeScreen(
                 .zIndex(3f)
         )
 
-        // 右下角悬浮新建按钮：按当前页面智能新建（日程页→事件，笔记页→便签）
-        FloatingActionButton(
-            onClick = { openPrimaryCreateDialog() },
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = cardFloatingBarOffset + 16.dp)
-                .zIndex(4f)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "新建")
-        }
 
         val deleteItem = scheduleItemToDelete
         val editCommitSession = recurringEditCommitSession
