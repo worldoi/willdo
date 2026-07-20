@@ -35,7 +35,7 @@ fun escapeBuildConfigString(value: String): String {
 
 android {
     namespace = "com.antgskds.calendarassistant"
-    compileSdkVersion("android-37.0")
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.antgskds.calendarassistant"

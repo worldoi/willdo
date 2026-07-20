@@ -37,11 +37,10 @@ fi
 SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 yes | "$SDKMANAGER" --licenses >/dev/null || true
 
+# build-tools 必须装（独立于 android-37 是否可用，否则回退 android-36 时会漏装）
+"$SDKMANAGER" "platform-tools" "build-tools;35.0.0"
 if [ ! -d "$ANDROID_HOME/platforms/android-37" ]; then
-  "$SDKMANAGER" "platform-tools" "platforms;android-37" "build-tools;35.0.0" || \
-    "$SDKMANAGER" "platforms;android-36"
-else
-  "$SDKMANAGER" "platform-tools" "build-tools;35.0.0"
+  "$SDKMANAGER" "platforms;android-37" || "$SDKMANAGER" "platforms;android-36"
 fi
 
 # ---- 4. Build the debug APK ----
