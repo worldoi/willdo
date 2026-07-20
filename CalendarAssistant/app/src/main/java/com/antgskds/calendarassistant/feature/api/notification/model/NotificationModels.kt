@@ -3,7 +3,6 @@ package com.antgskds.calendarassistant.feature.api.notification.model
 enum class NotificationKind {
     SCHEDULE_REMINDER,
     RECOGNITION_STATUS,
-    WEATHER_ALERT,
     SYSTEM_STATUS,
     DEBUG,
     GENERIC

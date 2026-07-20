@@ -46,7 +46,6 @@ object NotificationKindCatalog {
     val kinds: List<KindEntry> = listOf(
         KindEntry(NotificationKind.SCHEDULE_REMINDER, "日程提醒", TypicalRoute.EITHER, "日程到点/提前提醒；普通提醒走普通通知，开启胶囊时走实况胶囊"),
         KindEntry(NotificationKind.RECOGNITION_STATUS, "识别状态", TypicalRoute.EITHER, "OCR/AI 识别进行中、成功、失败的反馈"),
-        KindEntry(NotificationKind.WEATHER_ALERT, "天气预警", TypicalRoute.EITHER, "天气预警/风险提醒，带超时自动消失"),
         KindEntry(NotificationKind.SYSTEM_STATUS, "系统状态", TypicalRoute.NORMAL, "服务未开启、权限缺失、前台服务等系统类通知"),
         KindEntry(NotificationKind.DEBUG, "调试", TypicalRoute.NORMAL, "开发者/ADB 调试触发的通知"),
         KindEntry(NotificationKind.GENERIC, "通用", TypicalRoute.NORMAL, "未归类的通用通知兜底"),

@@ -14,11 +14,9 @@ object CapsuleType {
     const val SCHEDULE = 1
     const val PICKUP = 2
     const val PICKUP_EXPIRED = 3
-    const val NETWORK_SPEED = 4
     const val OCR_PROGRESS = 5
     const val OCR_RESULT = 6
     const val MODEL_LOADING = 7
-    const val WEATHER_ALERT = 8
     const val VOICE_TRANSCRIPTION = 9
     const val TEXT_QUICK_MEMO = 10
     const val QUICK_MEMO_RECORDING = 11

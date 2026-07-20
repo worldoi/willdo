@@ -22,11 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.antgskds.calendarassistant.core.ai.AiPrompts
 import com.antgskds.calendarassistant.core.attachment.EventAttachmentManager
-import com.antgskds.calendarassistant.core.center.ImportMode
-import com.antgskds.calendarassistant.core.center.ParsedCourseImport
 import com.antgskds.calendarassistant.data.model.AppBackupImportResult
 import com.antgskds.calendarassistant.data.model.AppBackupOptions
-import com.antgskds.calendarassistant.data.model.Course
 import com.antgskds.calendarassistant.ui.components.AppCard
 import com.antgskds.calendarassistant.ui.components.AppModalBottomSheet
 import com.antgskds.calendarassistant.ui.components.PredictiveFloatingActionCard
@@ -54,13 +51,6 @@ fun BackupSettingsPage(viewModel: SettingsViewModel, mainViewModel: MainViewMode
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     var currentToastType by remember { mutableStateOf(ToastType.SUCCESS) }
-    var showImportMethodDialog by remember { mutableStateOf(false) }
-    var showImportConfirmDialog by remember { mutableStateOf(false) }
-    var pendingParsedImport by remember { mutableStateOf<ParsedCourseImport?>(null) }
-    var importMode by remember { mutableStateOf(ImportMode.APPEND) }
-    var importSettings by remember { mutableStateOf(true) }
-    var shareImportLoading by remember { mutableStateOf(false) }
-    var importMethodError by remember { mutableStateOf<String?>(null) }
     var showBackupExportSheet by remember { mutableStateOf(false) }
     var showBackupImportSheet by remember { mutableStateOf(false) }
     var exportOptions by remember { mutableStateOf(AppBackupOptions(includeEvents = true)) }
@@ -121,59 +111,6 @@ fun BackupSettingsPage(viewModel: SettingsViewModel, mainViewModel: MainViewMode
     LaunchedEffect(mainViewModel) {
         mainViewModel.promptCheckFeedback.collect { feedback ->
             showToast(feedback.message, feedback.type)
-        }
-    }
-    fun prepareExternalImport(parsed: ParsedCourseImport) {
-        pendingParsedImport = parsed
-        importMode = ImportMode.APPEND
-        importSettings = parsed.canImportSettings && currentSettings.semesterStartDate.isBlank()
-        showImportConfirmDialog = true
-    }
-
-    fun readClipboardText(): String {
-        val clipboard = context.getSystemService(ClipboardManager::class.java)
-        val clip = clipboard?.primaryClip ?: return ""
-        if (clip.itemCount <= 0) return ""
-        return clip.getItemAt(0).coerceToText(context)?.toString().orEmpty()
-    }
-
-    // 课程数据导出
-    val exportCoursesLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val jsonData = viewModel.exportCoursesData()
-                    context.contentResolver.openOutputStream(uri)?.use { output -> output.write(jsonData.toByteArray()) }
-                    withContext(Dispatchers.Main) { showToast("课程数据导出成功", ToastType.SUCCESS) }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) { showToast("导出失败: ${e.message}", ToastType.ERROR) }
-                }
-            }
-        }
-    }
-
-    // 课程数据导入
-    val importCoursesLauncher = rememberLauncherForActivityResult(contract = ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) {
-            scope.launch(Dispatchers.IO) {
-                try {
-                    val content = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                    if (content != null) {
-                        val externalResult = viewModel.parseExternalCourseImport(content)
-                        if (externalResult.isSuccess) {
-                            withContext(Dispatchers.Main) {
-                                prepareExternalImport(externalResult.getOrThrow())
-                            }
-                        } else {
-                            val result = viewModel.importCoursesData(content)
-                            withContext(Dispatchers.Main) {
-                                if (result.isSuccess) showToast("课程数据导入成功，共 ${viewModel.getCoursesCount()} 门课程", ToastType.SUCCESS)
-                                else showToast("导入失败: ${result.exceptionOrNull()?.message}", ToastType.ERROR)
-                            }
-                        }
-                    }
-                } catch (e: Exception) { withContext(Dispatchers.Main) { showToast("导入失败: ${e.message}", ToastType.ERROR) } }
-            }
         }
     }
 
@@ -277,22 +214,6 @@ fun BackupSettingsPage(viewModel: SettingsViewModel, mainViewModel: MainViewMode
             Text("数据管理", style = sectionTitleStyle)
 
             BackupCard(
-                title = "课程数据",
-                desc = "备份/恢复课程表。支持本应用备份和外部课表导入",
-                onExport = {
-                    haptics.click()
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    exportCoursesLauncher.launch("calendar_courses_$timestamp.json")
-                },
-                onImport = {
-                    haptics.click()
-                    importMethodError = null
-                    showImportMethodDialog = true
-                },
-                cardTitleStyle = cardTitleStyle,
-                cardSubtitleStyle = cardSubtitleStyle
-            )
-            BackupCard(
                 title = "数据备份",
                 desc = "备份/恢复日程、随口记、设置、附件和提示词",
                 onExport = {
@@ -355,68 +276,6 @@ fun BackupSettingsPage(viewModel: SettingsViewModel, mainViewModel: MainViewMode
             snackbar = { data -> UniversalToast(message = data.visuals.message, type = currentToastType) }
         )
 
-        PredictiveFloatingActionCard(
-            visible = showImportMethodDialog,
-            title = "选择导入方式",
-            content = importMethodError?.let { "从口令导入失败：$it" }
-                ?: "文件导入支持本应用备份、WakeUp 文件和 ICS；口令导入会读取剪贴板中的 WakeUp 分享文本。",
-            confirmText = "从口令",
-            dismissText = "从文件",
-            isLoading = shareImportLoading,
-            allowDismissWhileLoading = false,
-            predictiveBackEnabled = currentSettings.predictiveBackEnabled,
-            onConfirm = {
-                haptics.confirm()
-                importMethodError = null
-                shareImportLoading = true
-                val clipboardText = readClipboardText()
-                scope.launch {
-                    val result = viewModel.fetchWakeUpShareImport(clipboardText)
-                    shareImportLoading = false
-                    if (result.isSuccess) {
-                        showImportMethodDialog = false
-                        prepareExternalImport(result.getOrThrow())
-                    } else {
-                        importMethodError = result.exceptionOrNull()?.message ?: "WakeUp 口令导入失败"
-                    }
-                }
-            },
-            onDismiss = {
-                haptics.click()
-                importMethodError = null
-                showImportMethodDialog = false
-                importCoursesLauncher.launch(arrayOf("*/*"))
-            },
-            modifier = Modifier
-                .padding(bottom = bottomInset)
-        )
-
-        val parsedImport = pendingParsedImport
-        if (showImportConfirmDialog && parsedImport != null) {
-            CourseImportConfirmSheet(
-                parsed = parsedImport,
-                currentSemesterStartDate = currentSettings.semesterStartDate,
-                importMode = importMode,
-                importSettings = importSettings,
-                cardValueStyle = cardValueStyle,
-                cardSubtitleStyle = cardSubtitleStyle,
-                onModeChange = { importMode = it },
-                onImportSettingsChange = { importSettings = it },
-                onDismiss = {
-                    showImportConfirmDialog = false
-                    pendingParsedImport = null
-                },
-                onConfirm = {
-                    haptics.confirm()
-                    viewModel.importParsedCourseImport(parsedImport, importMode, importSettings && parsedImport.canImportSettings) { result ->
-                        if (result.isSuccess) showToast("成功导入 ${result.getOrNull()} 门课程", ToastType.SUCCESS)
-                        else showToast("导入失败: ${result.exceptionOrNull()?.message}", ToastType.ERROR)
-                    }
-                    showImportConfirmDialog = false
-                    pendingParsedImport = null
-                }
-            )
-        }
 
         if (showBackupExportSheet) {
             BackupOptionsSheet(
@@ -480,229 +339,6 @@ fun BackupSettingsPage(viewModel: SettingsViewModel, mainViewModel: MainViewMode
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CourseImportConfirmSheet(
-    parsed: ParsedCourseImport,
-    currentSemesterStartDate: String,
-    importMode: ImportMode,
-    importSettings: Boolean,
-    cardValueStyle: TextStyle,
-    cardSubtitleStyle: TextStyle,
-    onModeChange: (ImportMode) -> Unit,
-    onImportSettingsChange: (Boolean) -> Unit,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    val haptics = rememberAppHaptics()
-    AppModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-        ) {
-            Text("导入外部课表", style = MaterialTheme.typography.titleLarge)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "确认导入内容，并选择是否同步课表设置。",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 520.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ImportSummaryCard(parsed, cardValueStyle)
-
-                if (currentSemesterStartDate.isNotBlank() && parsed.semesterStartDate != null &&
-                    currentSemesterStartDate != parsed.semesterStartDate
-                ) {
-                    AppCard(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("当前 App 开学日期：$currentSemesterStartDate", style = cardValueStyle, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                            Text("导入来源开学日期：${parsed.semesterStartDate}", style = cardValueStyle, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                    }
-                }
-
-                Text(
-                    text = "同步设置",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = parsed.canImportSettings) { haptics.selection(); onImportSettingsChange(!importSettings) }
-                        .padding(vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = importSettings && parsed.canImportSettings,
-                        enabled = parsed.canImportSettings,
-                        onCheckedChange = { haptics.selection(); onImportSettingsChange(it) }
-                    )
-                    Column(Modifier.padding(start = 12.dp)) {
-                        Text("同步课表设置", style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            if (parsed.canImportSettings) "同步已检测到的开学日期、总周数和每节课时间" else "未检测到可同步的课表设置",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Text(
-                    text = "导入方式",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 4.dp)
-                )
-                ImportOptionRadio(importMode, MaterialTheme.typography.bodyLarge, onModeChange)
-
-                if (importMode == ImportMode.OVERWRITE) {
-                    Text(
-                        "覆盖模式会清空当前所有课程，仅保留本次导入内容。",
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                HorizontalDivider()
-                CoursePreviewSection(parsed.courses, cardValueStyle, cardSubtitleStyle)
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Button(
-                onClick = onConfirm,
-                enabled = parsed.courses.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("导入")
-            }
-        }
-    }
-}
-
-@Composable
-private fun ImportSummaryCard(parsed: ParsedCourseImport, cardValueStyle: TextStyle) {
-    AppCard(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("导入摘要", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-            SummaryRow("来源", parsed.sourceName, cardValueStyle)
-            SummaryRow("课程", "${parsed.courses.size} 门", cardValueStyle)
-            SummaryRow("开学日期", parsed.semesterStartDate ?: "未检测到", cardValueStyle)
-            SummaryRow("总周数", parsed.totalWeeks?.let { "$it 周" } ?: "未检测到", cardValueStyle)
-            SummaryRow("作息时间", if (parsed.hasTimeTable) "可同步 ${parsed.timeNodeCount} 节" else "未检测到", cardValueStyle)
-        }
-    }
-}
-
-@Composable
-private fun SummaryRow(label: String, value: String, style: TextStyle) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = style, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = style, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-private fun CoursePreviewSection(courses: List<Course>, cardValueStyle: TextStyle, cardSubtitleStyle: TextStyle) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("课程预览", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-        courses.take(5).forEach { course ->
-            Column {
-                Text(course.name, style = cardValueStyle, fontWeight = FontWeight.Medium)
-                Text(course.previewText(), style = cardSubtitleStyle)
-            }
-        }
-        if (courses.size > 5) {
-            Text("还有 ${courses.size - 5} 门课程将在导入时一并处理", style = cardSubtitleStyle)
-        }
-    }
-}
-
-private fun Course.previewText(): String {
-    return buildString {
-        append(weekdayText(dayOfWeek))
-        append(" 第")
-        append(startNode)
-        append('-')
-        append(endNode)
-        append("节")
-        append(" · 第")
-        append(startWeek)
-        append('-')
-        append(endWeek)
-        append("周")
-        weekTypeText(weekType).takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
-        if (location.isNotBlank()) append(" · ").append(location)
-        if (teacher.isNotBlank()) append(" · ").append(teacher)
-    }
-}
-
-private fun weekdayText(dayOfWeek: Int): String {
-    return when (dayOfWeek) {
-        1 -> "周一"
-        2 -> "周二"
-        3 -> "周三"
-        4 -> "周四"
-        5 -> "周五"
-        6 -> "周六"
-        7 -> "周日"
-        else -> "周$dayOfWeek"
-    }
-}
-
-private fun weekTypeText(weekType: Int): String {
-    return when (weekType) {
-        1 -> "单周"
-        2 -> "双周"
-        else -> ""
-    }
-}
-
-@Composable
-fun ImportOptionRadio(currentMode: ImportMode, contentBodyStyle: TextStyle, onModeChange: (ImportMode) -> Unit) {
-    val haptics = rememberAppHaptics()
-    fun select(mode: ImportMode) {
-        haptics.selection()
-        onModeChange(mode)
-    }
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = currentMode == ImportMode.APPEND,
-                onClick = { select(ImportMode.APPEND) }
-            )
-            Text("追加 (保留现有课程，追加新课)", modifier = Modifier.clickable { select(ImportMode.APPEND) }, style = contentBodyStyle)
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(
-                selected = currentMode == ImportMode.OVERWRITE,
-                onClick = { select(ImportMode.OVERWRITE) }
-            )
-            Text("覆盖 (清空现有课程，仅保留新课)", modifier = Modifier.clickable { select(ImportMode.OVERWRITE) }, style = contentBodyStyle)
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

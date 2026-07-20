@@ -22,7 +22,6 @@ object WorkerCatalog {
     enum class Chain {
         SYNC,          // 同步
         RECOGNITION,   // 识别
-        WEATHER,       // 天气
         NOTIFICATION,  // 通知
         SUPPORT,       // 横切支撑
     }
@@ -64,13 +63,6 @@ object WorkerCatalog {
             "图片分享识别任务", Chain.RECOGNITION, "core/service/image/ImageShareRecognitionWorker",
             Trigger.ONE_TIME, Maturity.ACTIVE,
             "系统图片分享选择识别日程后，在后台完成图片识别并交给入库链路",
-        ),
-
-        // —— 天气 ——
-        WorkerEntry(
-            "天气同步任务", Chain.WEATHER, "feature/weather/domain/WeatherSyncWorker",
-            Trigger.PERIODIC, Maturity.ACTIVE,
-            "周期拉取天气数据、触发预警分析；开机由 BootReceiver 重排",
         ),
 
         // —— 规划中（讨论记录：同步失败重试缺口）——

@@ -38,7 +38,6 @@ import com.antgskds.calendarassistant.core.note.NoteParagraph
 import com.antgskds.calendarassistant.core.note.NoteParagraphType
 import com.antgskds.calendarassistant.core.note.plainTextContent
 import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
-import com.antgskds.calendarassistant.ui.page_display.settings.LocalAppBackgroundStyleEnabled
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -66,7 +65,7 @@ fun NoteCard(
     val previewText = remember(document) { buildNotePreview(document.paragraphs) }
     val updatedLabel = remember(note.updatedAt) { formatNoteUpdatedText(note.updatedAt) }
     val isCompleted = document.allTodosCompleted()
-    val usesWallpaperText = LocalAppBackgroundStyleEnabled.current
+    val usesWallpaperText = false
     val primaryTextColor = if (usesWallpaperText) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface
     val secondaryTextColor = if (usesWallpaperText) {
         MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
@@ -187,7 +186,7 @@ fun NoteCard(
 
 @Composable
 private fun NoteTaskPreviewRow(task: NoteParagraph, onToggle: () -> Unit) {
-    val usesWallpaperText = LocalAppBackgroundStyleEnabled.current
+    val usesWallpaperText = false
     val primaryTextColor = if (usesWallpaperText) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier.fillMaxWidth(),

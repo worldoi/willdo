@@ -5,17 +5,12 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
-import com.antgskds.calendarassistant.core.util.FlymeUtils
-import com.antgskds.calendarassistant.core.util.OsUtils
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.state.CapsuleType
 import com.antgskds.calendarassistant.data.state.CapsuleUiState
-import com.antgskds.calendarassistant.service.capsule.miui.MiuiIslandManager
-import com.antgskds.calendarassistant.service.capsule.provider.FlymeCapsuleProvider
 import com.antgskds.calendarassistant.service.capsule.provider.ICapsuleProvider
 import com.antgskds.calendarassistant.service.capsule.provider.NativeCapsuleProvider
 import com.antgskds.calendarassistant.platform.notification.alarmlegacy.NotificationIds
-import com.antgskds.calendarassistant.platform.xposed.XposedModuleStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -41,36 +36,21 @@ class CapsuleDispatcher(
 ) {
     private val notificationManager =
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    private val provider: ICapsuleProvider =
-        if (FlymeUtils.isFlyme()) FlymeCapsuleProvider() else NativeCapsuleProvider()
+    private val provider: ICapsuleProvider = NativeCapsuleProvider()
     private val activeNotifIds = ConcurrentHashMap.newKeySet<Int>()
     private var monitorJob: Job? = null
     private var isAggregateMode = false
 
-    /** 胶囊状态变化时的总分发入口：决定厂商通道并发布/取消。 */
+    /** 胶囊状态变化时的总分发入口：原生通道发布/取消。 */
     fun dispatch(state: CapsuleUiState) {
-        val settings = settingsQueryApi.settings.value
-        val useMiuiIsland = isMiuiIslandMode(settings)
         when (state) {
-            is CapsuleUiState.Active -> {
-                if (useMiuiIsland) {
-                    MiuiIslandManager.update(context, state.capsules)
-                    cancelAllCapsuleNotifications()
-                } else {
-                    updateCapsules(state.capsules)
-                }
-            }
+            is CapsuleUiState.Active -> updateCapsules(state.capsules)
             is CapsuleUiState.None -> {
                 monitorJob?.cancel()
                 isAggregateMode = false
-                MiuiIslandManager.clear(context)
                 cancelAllCapsuleNotifications()
             }
         }
-    }
-
-    private fun isMiuiIslandMode(settings: MySettings): Boolean {
-        return settings.isLiveCapsuleEnabled && OsUtils.isHyperOS() && XposedModuleStatus.isActive()
     }
 
     private fun updateCapsules(newCapsules: List<CapsuleUiState.Active.CapsuleItem>) {

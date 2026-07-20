@@ -25,7 +25,7 @@ data class RuleIconSource(
         }
 
         fun serialize(source: RuleIconSource): String {
-            return json.encodeToString(source)
+            return json.encodeToString(RuleIconSource.serializer(), source)
         }
     }
 }

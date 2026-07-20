@@ -135,14 +135,14 @@ data class MySettings(
     // 【实验室】剪贴板取件类识别
     val clipboardCodeRecognitionEnabled: Boolean = false,
 
-    // 【实验室】随口记总开关
+    // 随口记总开关（设置入口：偏好设置 → 随口记）
     val voiceInputEnabled: Boolean = false,
 
-    // 【实验室】悬浮窗已呼出后，长按音量+是否允许进入随口记录音；默认保留旧行为
+    // 悬浮窗已呼出后，长按音量+是否允许进入随口记录音；默认保留旧行为（设置入口：偏好设置 → 随口记）
     val floatingVoiceLongPressEnabled: Boolean = true,
-    // 【实验室】悬浮窗文本随口记保存后同步挂到实况通知；默认关闭，避免意外打扰
+    // 悬浮窗文本随口记保存后同步挂到实况通知；默认关闭，避免意外打扰（设置入口：偏好设置 → 随口记）
     val floatingTextQuickMemoAutoPinEnabled: Boolean = false,
-    // 【实验室】语音随口记转写完成后同步挂到实况通知；默认关闭，避免意外打扰
+    // 语音随口记转写完成后同步挂到实况通知；默认关闭，避免意外打扰（设置入口：偏好设置 → 随口记）
     val voiceQuickMemoAutoPinEnabled: Boolean = false,
 
     // 首页入口配置（第 2~4 位，第一位固定侧边栏）
@@ -154,7 +154,6 @@ data class MySettings(
     val archiveDaysThreshold: Int = 0, // 归档阈值天数（过期多少天后归档，0=立即归档）
 
     // 课表设置
-    val courseFeatureEnabled: Boolean = true,
     val semesterStartDate: String = "",
     val totalWeeks: Int = 20, // 旧版默认为 20
     val timeTableJson: String = "",
@@ -170,16 +169,6 @@ data class MySettings(
     val themeColorScheme: String = "DEFAULT",
     val customThemeColorHex: String = "#6750A4",
 
-    // 自定义背景：图片保存到 App 私有目录，图片取色结果复用自定义主题色链路
-    val appBackgroundEnabled: Boolean = false,
-    val appBackgroundImagePath: String = "",
-    val appBackgroundSeedColorHex: String = "",
-    val appBackgroundImageColorEnabled: Boolean = false,
-    val appBackgroundMiuiBlurTestEnabled: Boolean = false,
-    val appBackgroundWallpaperBlurEnabled: Boolean = false,
-    val appBackgroundCardAlphaPercent: Int = APP_BACKGROUND_CARD_ALPHA_DEFAULT_PERCENT,
-    val appBackgroundScrimAlphaPercent: Int = 0, // 旧设置兼容字段；主界面背景不再叠加蒙层
-    val appBackgroundAverageLuminance: Float = -1f,
 
     // UI 大小设置：1=小, 2=中(默认), 3=大
     val uiSize: Int = 2,
@@ -189,8 +178,6 @@ data class MySettings(
     val widgetThemeMode: Int = WidgetThemeMode.FOLLOW_APP,
     val widgetBackgroundAlpha: Float = 0.9f,
 
-    // 【实验室】网速胶囊开关
-    val isNetworkSpeedCapsuleEnabled: Boolean = false,
 
     // 悬浮窗功能开关
     val isFloatingWindowEnabled: Boolean = false,
@@ -204,50 +191,12 @@ data class MySettings(
     val floatingDragTextIncludeDescription: Boolean = true,
     val floatingDragHotZonePercent: Int = FLOATING_DRAG_HOT_ZONE_DEFAULT_PERCENT,
 
-    // 天气配置
-    val weatherEnabled: Boolean = false,
-    val weatherApiUrl: String = "",
-    val weatherApiKey: String = "",
-    val weatherCity: String = "",
-    val weatherLocationMode: String = "auto_fallback_manual",
-    val weatherManualLocationId: String = "",
-    val weatherManualLocationName: String = "",
-    val weatherManualAdm1: String = "",
-    val weatherManualAdm2: String = "",
-    val weatherManualCountry: String = "",
-    val weatherManualLat: Double = 0.0,
-    val weatherManualLon: Double = 0.0,
-    val weatherWarningEnabled: Boolean = true,
-    val weatherRiskWarningEnabled: Boolean = true,
-    val weatherWarningLookaheadHours: Int = 24,
-    val weatherLocationStabilityRequiredHits: Int = 2,
-    val weatherProvider: String = "qweather",
-    val weatherRefreshInterval: Int = 30,
-    val showWeatherInFloating: Boolean = true,
-    val floatingWeatherForecastRange: Int = 0,
     // —— 通知策略（Policy Config：ConfigCatalog 登记、业务读取；默认 = 原硬编码常量）——
     val resultNotificationTimeoutMs: Int = 8000,
     val quickMemoSuggestionTimeoutMs: Int = 60000,
     val dailySummaryTimeoutMs: Int = 60000,
-    val weatherNotificationTimeoutMs: Int = 180000,
     val ocrProgressTimeoutMs: Int = 120000,
     val modelLoadingTimeoutMs: Int = 600000,
-    // —— 天气预测风险阈值（Policy Config；默认 = WeatherRiskAnalyzer 原硬编码值；可按地区/用户覆盖）——
-    val weatherHighTempTriggerCelsius: Int = 35,
-    val weatherHighTempHighCelsius: Int = 38,
-    val weatherLowTempTriggerCelsius: Int = 0,
-    val weatherLowTempHighCelsius: Int = -5,
-    val weatherStrongCoolingDropCelsius: Int = 6,
-    val weatherSevereCoolingDropCelsius: Int = 10,
-    val weatherCoolingLookbackHours: Int = 6,
-    val weatherWindScaleTrigger: Int = 5,
-    val weatherWindScaleMedium: Int = 6,
-    val weatherRainTriggerPrecipTenthMm: Int = 1,
-    val weatherRainMediumPrecipTenthMm: Int = 10,
-    val weatherRainHighPrecipTenthMm: Int = 70,
-    val weatherRainTriggerPopPercent: Int = 60,
-    val weatherRainMediumPopPercent: Int = 80,
-
     // 长按音量+动作
     val volumeUpLongPressEnabled: Boolean = false,
     val volumeUpLongPressAction: Int = 1, // 1=识屏, 2=悬浮窗, 3=随口记
@@ -308,12 +257,6 @@ data class MySettings(
             return RecognitionMode.normalize(mode)
         }
 
-        fun normalizeAppBackgroundCardAlphaPercent(alphaPercent: Int): Int {
-            return alphaPercent.coerceIn(
-                APP_BACKGROUND_CARD_ALPHA_MIN_PERCENT,
-                APP_BACKGROUND_CARD_ALPHA_MAX_PERCENT
-            )
-        }
 
         fun normalizeFloatingDragHotZonePercent(percent: Int): Int {
             return percent.coerceIn(

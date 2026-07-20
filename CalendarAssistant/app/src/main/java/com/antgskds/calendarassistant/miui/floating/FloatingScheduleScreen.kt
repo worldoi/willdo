@@ -19,13 +19,10 @@ import androidx.compose.ui.unit.dp
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.data.model.EventPatch
 import com.antgskds.calendarassistant.data.model.ScheduleDisplayItem
-import com.antgskds.calendarassistant.data.model.WeatherData
 
 @Composable
 fun FloatingScheduleScreen(
     scheduleItems: List<ScheduleDisplayItem>,
-    weatherData: WeatherData?,
-    weatherForecastRange: Int = 0,
     expandSide: String,
     onClose: () -> Unit,
     onManualInput: (String, () -> Unit) -> Unit,

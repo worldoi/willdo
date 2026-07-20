@@ -20,7 +20,6 @@ object NotificationIds {
     private const val STANDARD_REMINDER_NAMESPACE = "standard-reminder"
     private const val LIVE_CAPSULE_NAMESPACE = "live-capsule"
     private const val PICKUP_INITIAL_NAMESPACE = "pickup-initial"
-    private const val WEATHER_WARNING_NAMESPACE = "weather-warning"
     private const val QUICK_MEMO_SUGGESTION_NAMESPACE = "quick-memo-suggestion"
     private const val CREATED_EVENT_RESULT_NAMESPACE = "created-event-result"
     private const val VOICE_TRANSCRIPTION_NAMESPACE = "voice-transcription"
@@ -37,8 +36,6 @@ object NotificationIds {
     fun liveCapsule(instanceKey: String): Int = stableId(LIVE_CAPSULE_NAMESPACE, instanceKey)
 
     fun pickupInitial(eventId: Long): Int = stableId(PICKUP_INITIAL_NAMESPACE, eventId.toString())
-
-    fun weatherWarning(key: String): Int = stableId(WEATHER_WARNING_NAMESPACE, key)
 
     fun quickMemoVoiceTranscription(memoId: Long): Int = stableId(VOICE_TRANSCRIPTION_NAMESPACE, memoId.toString())
 

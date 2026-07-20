@@ -21,8 +21,6 @@ import com.antgskds.calendarassistant.calendar.models.EventTags
 import com.antgskds.calendarassistant.calendar.models.isRetiredNoteTag
 import com.antgskds.calendarassistant.calendar.sync.SystemCalendarSyncManager
 import com.antgskds.calendarassistant.core.center.CalendarCenter
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
-import com.antgskds.calendarassistant.data.model.Course
 import com.antgskds.calendarassistant.data.model.ImportResult
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.repository.SettingsRepository
@@ -257,10 +255,7 @@ class LegacyDataMigrationCoordinator(
                 val tag = normalizeTag(resolveTag(master.ruleId))
                 if (isRemovedNoteTag(tag)) return@forEach
 
-                if (tag == EventTags.COURSE) {
-                    buildCourseCandidateFromLegacyMaster(master, settings)?.let { candidates += it }
-                    return@forEach
-                }
+                if (tag == EventTags.COURSE) return@forEach
 
                 val reminders = parseLegacyReminderMinutes(master.remindersJson)
                 val source = resolveSource(master.source)
@@ -368,13 +363,6 @@ class LegacyDataMigrationCoordinator(
             val content = runCatching { file.readText() }.getOrNull()?.trim().orEmpty()
             if (content.isBlank()) return@forEach
 
-            if (name.startsWith("courses")) {
-                val courses = runCatching { json.decodeFromString<List<Course>>(content) }.getOrNull().orEmpty()
-                courses.forEach { course ->
-                    candidates += CourseEventMapper.toParentEvent(course, settings)
-                }
-                return@forEach
-            }
 
             val backupData = runCatching { json.decodeFromString<LegacyEventsBackupData>(content) }.getOrNull()
             if (backupData != null) {
@@ -439,10 +427,6 @@ class LegacyDataMigrationCoordinator(
             }
         }
 
-        val courses = runCatching { json.decodeFromString<List<Course>>(trimmed) }.getOrNull()
-        if (!courses.isNullOrEmpty()) {
-            return courses.map { course -> CourseEventMapper.toParentEvent(course, settings) }
-        }
 
         val legacyList = runCatching { json.decodeFromString<List<LegacyMyEvent>>(trimmed) }.getOrNull()
         if (!legacyList.isNullOrEmpty()) {
@@ -465,24 +449,7 @@ class LegacyDataMigrationCoordinator(
 
         val tag = normalizeTag(legacy.tag)
         if (isRemovedNoteTag(tag)) return null
-        if (tag == EventTags.COURSE) {
-            if (!legacy.isRecurringParent) return null
-            val meta = CourseEventMapper.parseMeta(legacy.description) ?: return null
-            val course = Course(
-                id = meta.uid.ifBlank { legacy.id.ifBlank { CourseEventMapper.stableImportId(title, meta.teacher, legacy.location, meta.dayOfWeek, meta.startNode, meta.endNode, meta.startWeek, meta.endWeek, meta.weekType) } },
-                name = title,
-                location = legacy.location,
-                teacher = meta.teacher,
-                color = legacy.color,
-                dayOfWeek = meta.dayOfWeek,
-                startNode = meta.startNode,
-                endNode = meta.endNode,
-                startWeek = meta.startWeek,
-                endWeek = meta.endWeek,
-                weekType = meta.weekType
-            )
-            return CourseEventMapper.toParentEvent(course, settings)
-        }
+        if (tag == EventTags.COURSE) return null
 
         if (legacy.isRecurringParent) {
             // 旧模型里母事件通常与子实例并存；迁移时优先使用子实例避免重复。
@@ -766,36 +733,6 @@ class LegacyDataMigrationCoordinator(
         }
     }
 
-    private fun buildCourseCandidateFromLegacyMaster(master: LegacyMaster, settings: MySettings): Event? {
-        val meta = CourseEventMapper.parseMeta(master.description) ?: return null
-        val id = meta.uid.ifBlank {
-            CourseEventMapper.stableImportId(
-                name = master.title,
-                teacher = meta.teacher,
-                room = master.location,
-                dayOfWeek = meta.dayOfWeek,
-                startNode = meta.startNode,
-                endNode = meta.endNode,
-                startWeek = meta.startWeek,
-                endWeek = meta.endWeek,
-                weekType = meta.weekType
-            )
-        }
-        val course = Course(
-            id = id,
-            name = master.title,
-            location = master.location,
-            teacher = meta.teacher,
-            color = master.colorArgb,
-            dayOfWeek = meta.dayOfWeek,
-            startNode = meta.startNode,
-            endNode = meta.endNode,
-            startWeek = meta.startWeek,
-            endWeek = meta.endWeek,
-            weekType = meta.weekType
-        )
-        return CourseEventMapper.toParentEvent(course, settings)
-    }
 
     private fun parseLegacyReminderMinutes(raw: String): List<Int> {
         if (raw.isBlank()) return emptyList()

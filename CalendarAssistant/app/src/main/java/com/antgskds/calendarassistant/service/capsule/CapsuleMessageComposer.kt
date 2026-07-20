@@ -5,18 +5,12 @@ import com.antgskds.calendarassistant.core.content.EventCapsulePresenter
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.calendar.models.*
 import com.antgskds.calendarassistant.data.model.LiveNotificationTemplateMode
-import com.antgskds.calendarassistant.data.model.WeatherAlertData
-import com.antgskds.calendarassistant.data.model.WeatherRiskAlert
 import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.RecognitionLiveDisplay
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.SystemLiveDisplay
 
 object CapsuleMessageComposer {
     // --- 非事件类胶囊 ---
-
-    fun composeNetworkSpeed(speed: NetworkSpeedMonitor.NetworkSpeed): CapsuleDisplayModel {
-        return SystemLiveDisplay.networkSpeed(speed.formattedSpeed)
-    }
 
     fun composeOcrProgress(title: String, content: String): CapsuleDisplayModel {
         return RecognitionLiveDisplay.progress(title, content)
@@ -47,22 +41,6 @@ object CapsuleMessageComposer {
 
     fun composeQuickMemoRecording(title: String, content: String): CapsuleDisplayModel {
         return SystemLiveDisplay.quickMemoRecording(title, content)
-    }
-
-    fun composeWeatherAlert(
-        locationName: String,
-        alert: WeatherAlertData,
-        templateMode: String = LiveNotificationTemplateMode.AUTO
-    ): CapsuleDisplayModel {
-        return NotificationTemplateCenter.composeOfficialWeatherAlert(locationName, alert, templateMode)
-    }
-
-    fun composeWeatherRisk(
-        locationName: String,
-        risk: WeatherRiskAlert,
-        templateMode: String = LiveNotificationTemplateMode.AUTO
-    ): CapsuleDisplayModel {
-        return NotificationTemplateCenter.composeWeatherRisk(locationName, risk, templateMode)
     }
 
     // --- 事件类胶囊 (委托 EventPresenter) ---

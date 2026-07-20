@@ -2,14 +2,10 @@ package com.antgskds.calendarassistant.service.capsule
 
 import com.antgskds.calendarassistant.core.util.OsUtils
 import com.antgskds.calendarassistant.data.model.LiveNotificationTemplateMode
-import com.antgskds.calendarassistant.data.model.WeatherAlertData
-import com.antgskds.calendarassistant.data.model.WeatherRiskAlert
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.ScheduleActionLiveDisplay
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.TransportLiveDisplay
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.compact.ScheduleCompactLiveDisplay
-import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.compact.WeatherCompactLiveDisplay
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.full.ScheduleFullLiveDisplay
-import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.full.WeatherFullLiveDisplay
 
 enum class NotificationTemplateMode {
     FULL_MULTILINE,
@@ -123,27 +119,5 @@ object NotificationTemplateCenter {
             expandedText = expandedText,
             action = action
         )
-    }
-
-    fun composeOfficialWeatherAlert(
-        locationName: String,
-        alert: WeatherAlertData,
-        templateMode: String = LiveNotificationTemplateMode.AUTO
-    ): CapsuleDisplayModel {
-        return when (nativeCapsuleMode(templateMode)) {
-            NotificationTemplateMode.COMPACT_TWO_LINE -> WeatherCompactLiveDisplay.officialAlert(locationName, alert)
-            NotificationTemplateMode.FULL_MULTILINE -> WeatherFullLiveDisplay.officialAlert(locationName, alert)
-        }
-    }
-
-    fun composeWeatherRisk(
-        locationName: String,
-        risk: WeatherRiskAlert,
-        templateMode: String = LiveNotificationTemplateMode.AUTO
-    ): CapsuleDisplayModel {
-        return when (nativeCapsuleMode(templateMode)) {
-            NotificationTemplateMode.COMPACT_TWO_LINE -> WeatherCompactLiveDisplay.risk(locationName, risk)
-            NotificationTemplateMode.FULL_MULTILINE -> WeatherFullLiveDisplay.risk(locationName, risk)
-        }
     }
 }

@@ -63,13 +63,11 @@ import com.antgskds.calendarassistant.core.event.events.IngestFailedEvent
 import com.antgskds.calendarassistant.core.event.events.IngestSucceededEvent
 import com.antgskds.calendarassistant.core.event.events.RecognitionFailedEvent
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
-import com.antgskds.calendarassistant.feature.weather.api.WeatherQueryApi
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoEntity
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoTranscriptionStatus
 import com.antgskds.calendarassistant.core.quickmemo.audio.QuickMemoAudioRecorder
 import com.antgskds.calendarassistant.core.quickmemo.audio.QuickMemoVoiceCaptureState
 import com.antgskds.calendarassistant.core.quickmemo.audio.QuickMemoVoiceCaptureStatus
-import com.antgskds.calendarassistant.feature.weather.domain.hasWeatherConfig
 import com.antgskds.calendarassistant.core.service.image.ImagePickHandleActivity
 import com.antgskds.calendarassistant.core.util.ImageImportUtils
 import com.antgskds.calendarassistant.core.model.RecurringMode
@@ -176,7 +174,6 @@ class FloatingScheduleService : Service(), LifecycleOwner, SavedStateRegistryOwn
     private val audioPlaybackCenter by lazy { app.audioPlaybackCenter }
     private val scheduleQueryApi: ScheduleQueryApi by lazy { app.scheduleQueryApi }
     private val settingsQueryApi: SettingsQueryApi by lazy { app.settingsQueryApi }
-    private val weatherQueryApi: WeatherQueryApi by lazy { app.weatherQueryApi }
     private val permissionCenter by lazy { app.permissionCenter }
     private val domainEventBus by lazy { app.domainEventBus }
     private var recognitionFailedSubscriptionJob: Job? = null
@@ -357,7 +354,6 @@ class FloatingScheduleService : Service(), LifecycleOwner, SavedStateRegistryOwn
                 val events by scheduleQueryApi.events.collectAsState()
                 val settings by settingsQueryApi.settings.collectAsState()
                 val context = LocalContext.current
-                val weatherData by weatherQueryApi.weatherData.collectAsState()
                 val quickMemos by quickMemoCenter.quickMemos.collectAsState()
                 val currentVoiceCaptureState by voiceCaptureState.collectAsState()
                 val currentRecentVoiceMemoId by recentVoiceMemoId.collectAsState()
@@ -414,8 +410,6 @@ class FloatingScheduleService : Service(), LifecycleOwner, SavedStateRegistryOwn
                         } else when (UiStyle.fromName(settings.uiStyle)) {
                             UiStyle.MIUI -> com.antgskds.calendarassistant.miui.floating.FloatingScheduleScreen(
                                 scheduleItems = scheduleItems,
-                                weatherData = if (settings.hasWeatherConfig() && settings.showWeatherInFloating) weatherData else null,
-                                weatherForecastRange = settings.floatingWeatherForecastRange,
                                 expandSide = settings.floatingExpandSide,
                                 hapticEnabled = settings.hapticFeedbackEnabled,
                                 onClose = { requestClose() },
@@ -477,8 +471,6 @@ class FloatingScheduleService : Service(), LifecycleOwner, SavedStateRegistryOwn
                             includeDescription = settings.floatingDragTextIncludeDescription
                         ),
                         audioPlaybackState = audioPlaybackState,
-                        weatherData = if (settings.hasWeatherConfig() && settings.showWeatherInFloating) weatherData else null,
-                        weatherForecastRange = settings.floatingWeatherForecastRange,
                         expandSide = settings.floatingExpandSide,
                         initialMode = currentRequestedInputMode.first,
                         initialModeRequestKey = currentRequestedInputMode.second,

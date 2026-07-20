@@ -1,12 +1,7 @@
 package com.antgskds.calendarassistant.platform.widget
 
-import com.antgskds.calendarassistant.data.model.WeatherData
 import com.antgskds.calendarassistant.data.model.TimeNode
 import java.time.LocalDate
-
-data class WeatherWidgetSnapshot(
-    val weather: WeatherData?
-)
 
 data class CourseWidgetSnapshot(
     val today: LocalDate,

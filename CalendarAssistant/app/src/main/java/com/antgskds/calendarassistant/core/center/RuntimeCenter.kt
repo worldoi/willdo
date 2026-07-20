@@ -2,7 +2,6 @@ package com.antgskds.calendarassistant.core.center
 
 import android.content.Context
 import android.util.Log
-import com.antgskds.calendarassistant.core.query.NetworkSpeedProbeQueryApi
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
 import com.antgskds.calendarassistant.platform.receiver.DailySummaryReceiver
 import com.antgskds.calendarassistant.platform.receiver.KeepAliveReceiver
@@ -19,7 +18,6 @@ class RuntimeCenter(
     private val settingsQueryApi: SettingsQueryApi,
     private val permissionCenter: PermissionCenter,
     private val floatingCenter: FloatingCenter,
-    private val networkSpeedProbeQueryApi: NetworkSpeedProbeQueryApi,
     private val capsuleCenter: CapsuleCenter,
     private val appScope: CoroutineScope
 ) {
@@ -27,7 +25,6 @@ class RuntimeCenter(
         private const val TAG = "RuntimeCenter"
     }
 
-    private var networkSpeedMonitorJob: Job? = null
     private var clipboardCodeMonitorJob: Job? = null
 
     fun startAppRoutines() {
@@ -35,7 +32,6 @@ class RuntimeCenter(
         startPeriodicSync()
         scheduleKeepAlive()
         scheduleReminderReconcile()
-        startNetworkSpeedMonitoring()
         startEdgeBarIfNeeded()
         startClipboardCodeMonitoring()
     }
@@ -76,23 +72,6 @@ class RuntimeCenter(
         }
     }
 
-    fun startNetworkSpeedMonitoring() {
-        if (networkSpeedMonitorJob?.isActive == true) return
-
-        networkSpeedMonitorJob = appScope.launch {
-            settingsQueryApi.settings.collectLatest { settings ->
-                if (!settings.isLiveCapsuleEnabled || !settings.isNetworkSpeedCapsuleEnabled) {
-                    capsuleCenter.updateNetworkSpeed(null)
-                    return@collectLatest
-                }
-
-                Log.d(TAG, "Network speed capsule enabled, start monitor")
-                networkSpeedProbeQueryApi.observeDownloadSpeed().collectLatest { speed ->
-                    capsuleCenter.updateNetworkSpeed(speed)
-                }
-            }
-        }
-    }
 
     fun startEdgeBarIfNeeded() {
         try {

@@ -27,12 +27,10 @@ import com.antgskds.calendarassistant.service.capsule.CapsuleActionSpec
 import com.antgskds.calendarassistant.service.capsule.NotificationTemplateCenter
 import com.antgskds.calendarassistant.data.state.CapsuleUiState
 import com.antgskds.calendarassistant.service.capsule.IconUtils
-import com.antgskds.calendarassistant.service.capsule.provider.FlymeCapsuleProvider
 import com.antgskds.calendarassistant.service.capsule.provider.ICapsuleProvider
 import com.antgskds.calendarassistant.service.capsule.provider.NativeCapsuleProvider
 import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 import com.antgskds.calendarassistant.platform.notification.alarmlegacy.NotificationIds
-import com.antgskds.calendarassistant.core.util.FlymeUtils
 import com.antgskds.calendarassistant.feature.api.notification.NotificationApi
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationFailureReason
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationKey
@@ -99,7 +97,7 @@ class NotificationCenter(
             ?: DEFAULT_DAILY_SUMMARY_TIMEOUT_MS).coerceIn(1000L, 120_000L)
 
     private val capsuleProvider: ICapsuleProvider by lazy {
-        if (FlymeUtils.isFlyme()) FlymeCapsuleProvider() else NativeCapsuleProvider()
+        NativeCapsuleProvider()
     }
 
     override suspend fun create(request: NotificationRequest): NotificationResult {

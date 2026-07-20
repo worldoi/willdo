@@ -63,14 +63,11 @@ object FeatureCatalog {
 
         // —— 日程主体 ——
         FeatureEntry("日程管理", Chain.SCHEDULE, "core/center/ScheduleCenter", "事件 CRUD、展示模型、重复日程"),
-        FeatureEntry("课程表", Chain.SCHEDULE, "core/course", "课程并入事件模型、课表设置"),
         FeatureEntry("快捷备忘", Chain.SCHEDULE, "core/center/QuickMemoCenter", "语音/文字快捷备忘"),
         FeatureEntry("图片随口记", Chain.SCHEDULE, "core/center/QuickMemoCenter", "系统图片/分享图片保存为随口记素材"),
         FeatureEntry("便签笔记", Chain.SCHEDULE, "core/center/NoteCenter", "便签编辑与存储"),
 
         // —— 横切支撑 ——
-        FeatureEntry("天气", Chain.SUPPORT, "core/weather", "天气预警/风险，位置选择"),
-        FeatureEntry("背景自定义", Chain.SUPPORT, "feature/appearance/domain/AppBackgroundImageStore", "用户图片背景导入、私有存储与背景取色"),
         FeatureEntry("数据备份", Chain.SUPPORT, "core/center/BackupCenter", "导入导出备份"),
         FeatureEntry("桌面小组件", Chain.SUPPORT, "core/center/WidgetCenter", "日程/课程桌面小组件"),
         FeatureEntry("悬浮窗/EdgeBar", Chain.SUPPORT, "core/center/FloatingCenter", "悬浮窗与侧边栏快捷入口"),

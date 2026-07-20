@@ -22,8 +22,6 @@ data class NotificationKey(
 
         fun recognition(id: String): NotificationKey = NotificationKey("recognition:$id")
 
-        fun weatherAlert(id: String): NotificationKey = NotificationKey("weather:$id")
-
         fun systemStatus(id: String): NotificationKey = NotificationKey("system:$id")
 
         fun debug(id: String): NotificationKey = NotificationKey("debug:$id")

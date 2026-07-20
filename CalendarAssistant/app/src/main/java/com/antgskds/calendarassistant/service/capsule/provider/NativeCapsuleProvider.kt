@@ -17,7 +17,6 @@ import com.antgskds.calendarassistant.data.state.CapsuleUiState
 import com.antgskds.calendarassistant.service.capsule.CapsuleActionSpec
 import com.antgskds.calendarassistant.service.capsule.CapsuleUiUtils
 import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
-import com.antgskds.calendarassistant.platform.widget.WidgetActions
 
 class NativeCapsuleProvider : ICapsuleProvider {
     companion object {
@@ -96,8 +95,6 @@ class NativeCapsuleProvider : ICapsuleProvider {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             if (tapEventId != null) {
                 putExtra(MainActivity.EXTRA_OPEN_EVENT_ID, tapEventId)
-            } else if (item.type == CapsuleType.WEATHER_ALERT) {
-                putExtra(WidgetActions.EXTRA_WIDGET_ACTION, WidgetActions.ACTION_OPEN_WEATHER)
             } else if (item.display.tapOpensPickupList) {
                 putExtra("openPickupList", true)
             }

@@ -4,8 +4,6 @@ import android.util.Log
 import com.antgskds.calendarassistant.App
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.data.model.EventPatch
-import com.antgskds.calendarassistant.data.model.WeatherAlertData
-import com.antgskds.calendarassistant.data.model.WeatherRiskAlert
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationBehavior
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationAction
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationDisplaySnapshot
@@ -18,13 +16,11 @@ import com.antgskds.calendarassistant.feature.api.notification.model.Notificatio
 import com.antgskds.calendarassistant.feature.api.notification.model.NotificationTapTargetType
 import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.core.query.DailySummaryPayload
-import com.antgskds.calendarassistant.feature.weather.domain.WeatherAlertIconMapper
 import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 import com.antgskds.calendarassistant.service.capsule.CapsuleActionSpec
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.normal.ScheduleNormalDisplay
 import java.time.LocalDate
 import com.antgskds.calendarassistant.core.ai.RecognitionFailureDisplay
-import com.antgskds.calendarassistant.service.capsule.NetworkSpeedMonitor
 import com.antgskds.calendarassistant.shared.management.catalog.ConfigCatalog
 import com.antgskds.calendarassistant.shared.management.catalog.NotificationKindCatalog
 import com.antgskds.calendarassistant.shared.management.catalog.PageCatalog
@@ -79,22 +75,13 @@ object DebugActionRegistry {
             Log.d(DEBUG_TAG, "reconcile requested")
             app.reminderCenter.reconcileAllNow()
         },
-        DebugAction("weather-alert", "触发天气预警（普通+灵动两形态）", CATEGORY_NOTIFICATION) { app ->
-            fireWeatherAlert(app)
-        },
-        DebugAction("weather-risk", "触发天气风险（普通+灵动两形态）", CATEGORY_NOTIFICATION) { app ->
-            fireWeatherRisk(app)
-        },
-    ) + weatherSampleDebugActions() + listOf(
+    ) + listOf(
         // —— 通知测试（迁自实验室：普通通知 / 每日提醒 / 新链路预览；与旧 chip 同实现）——
         DebugAction("test-plain-schedule", "测试普通通知·日程", CATEGORY_NOTIFICATION) { app ->
             firePlainSample(app, "schedule", "调试·日程", "15 分钟后开始：检查普通日程通知样式。", R.drawable.ic_stat_event)
         },
         DebugAction("test-plain-pickup", "测试普通通知·取件", CATEGORY_NOTIFICATION) { app ->
             firePlainSample(app, "pickup", "调试·取件", "菜鸟驿站 3-2-101，取件码 8-2333。", R.drawable.ic_stat_package)
-        },
-        DebugAction("test-plain-course", "测试普通通知·课程", CATEGORY_NOTIFICATION) { app ->
-            firePlainSample(app, "course", "调试·课程", "高等数学即将开始，地点：教学楼 A203。", R.drawable.ic_stat_course)
         },
         DebugAction("test-normal-double-action", "测试普通通知·双按钮", CATEGORY_NOTIFICATION) { app ->
             fireNormalDoubleAction(app)
@@ -117,7 +104,6 @@ object DebugActionRegistry {
         DebugAction("test-capsule-recognition-2", "测试胶囊·识别成功 x2", CATEGORY_CAPSULE) { app -> fireRecognitionSuccess(app, 2) },
         DebugAction("test-capsule-recognition-fail", "测试胶囊·识别失败", CATEGORY_CAPSULE) { app -> fireRecognitionFailure(app) },
         DebugAction("test-capsule-model-loading", "测试胶囊·模型加载", CATEGORY_CAPSULE) { app -> fireModelLoading(app) },
-        DebugAction("test-capsule-network-speed", "测试胶囊·网速", CATEGORY_CAPSULE) { app -> fireNetworkSpeed(app) },
         DebugAction("test-live-double-action", "测试实况通知·双按钮", CATEGORY_CAPSULE) { app -> fireLiveDoubleAction(app) },
         DebugAction("test-live-daily-today", "测试实况通知·每日提醒今日", CATEGORY_CAPSULE) { app ->
             fireDailySummary(app, isMorning = true, requireLive = true)
@@ -142,7 +128,7 @@ object DebugActionRegistry {
         DebugAction("test-imported-restore", "测试导入归档日程恢复", CATEGORY_EVENT, dangerous = true) { app ->
             testImportedRestore(app)
         },
-    ) + developerEventDebugActions() + listOf(
+    ) + listOf(
         DebugAction("delete-test-events", "删除所有 DEBUG 测试事件", CATEGORY_EVENT, dangerous = true) { app ->
             deleteTestEvents(app)
         },
@@ -284,348 +270,6 @@ object DebugActionRegistry {
         )
     }
 
-    /**
-     * 触发一次天气「预警」通知，同时打出普通 + 灵动两种形态，二者共用 weatherNotificationTimeoutMs。
-     * 只调 App 公开 api（capsuleCenter / notificationCenter / settingsQueryApi），不碰 WeatherNotifier 内部。
-     */
-    private fun fireWeatherAlert(app: App) {
-        val location = "调试·天气"
-        val alert = WeatherAlertData(
-            id = "debug-alert",
-            eventName = "暴雨预警",
-            severity = "Orange",
-            headline = "调试用暴雨橙色预警",
-            description = "用于验证天气通知停留时长的调试预警，应在配置时长后自动消失。",
-            instruction = "无需采取实际行动，仅供测试。"
-        )
-        val timeoutMs = app.settingsQueryApi.settings.value.weatherNotificationTimeoutMs.toLong()
-        Log.d(
-            DEBUG_TAG,
-            "weather-alert fired; timeoutMs=$timeoutMs isLive=${app.settingsQueryApi.settings.value.isLiveCapsuleEnabled}"
-        )
-        // 灵动形态：胶囊自身读取 weatherNotificationTimeoutMs 排自动清除（需实况胶囊开启才可见）
-        app.capsuleCenter.showWeatherAlert(location, alert)
-        // 普通形态：传入同一时长，由 setTimeoutAfter 自动消失
-        val result = app.notificationCenter.publishPlainNotification(
-            weatherPlainRequest(
-                key = NotificationKey.weatherAlert("debug-alert"),
-                notificationId = DEBUG_WEATHER_ALERT_NOTIF_ID,
-                title = "调试·天气预警",
-                content = alert.description,
-                smallIcon = WeatherAlertIconMapper.officialIconRes(alert),
-                timeoutMs = timeoutMs,
-                source = "debug_weather_alert"
-            )
-        )
-        Log.d(DEBUG_TAG, "weather-alert new-chain result=$result")
-    }
-
-    /**
-     * 触发一次天气「风险」通知（软件自算 WeatherRiskAlert），同时打出普通 + 灵动两种形态。
-     */
-    private fun fireWeatherRisk(app: App) {
-        val location = "调试·天气"
-        val risk = WeatherRiskAlert(
-            id = "debug-risk",
-            title = "调试·天气风险提醒",
-            level = "medium",
-            weatherText = "雷阵雨转中雨",
-            message = "用于验证天气通知停留时长的调试风险提醒，应在配置时长后自动消失。"
-        )
-        val timeoutMs = app.settingsQueryApi.settings.value.weatherNotificationTimeoutMs.toLong()
-        Log.d(
-            DEBUG_TAG,
-            "weather-risk fired; timeoutMs=$timeoutMs isLive=${app.settingsQueryApi.settings.value.isLiveCapsuleEnabled}"
-        )
-        app.capsuleCenter.showWeatherRisk(location, risk)
-        val result = app.notificationCenter.publishPlainNotification(
-            weatherPlainRequest(
-                key = NotificationKey.weatherAlert("debug-risk"),
-                notificationId = DEBUG_WEATHER_RISK_NOTIF_ID,
-                title = "调试·天气风险",
-                content = risk.message,
-                smallIcon = WeatherAlertIconMapper.riskIconRes(risk),
-                timeoutMs = timeoutMs,
-                source = "debug_weather_risk"
-            )
-        )
-        Log.d(DEBUG_TAG, "weather-risk new-chain result=$result")
-    }
-
-    private fun weatherSampleDebugActions(): List<DebugAction> {
-        val alertActions = weatherAlertSamples().flatMap { sample ->
-            listOf(
-                DebugAction(
-                    "weather-alert-normal-${sample.id}",
-                    "天气普通通知·${sample.label}",
-                    CATEGORY_NOTIFICATION
-                ) { app -> fireWeatherAlertSample(app, sample, WeatherDebugRoute.NORMAL) },
-                DebugAction(
-                    "weather-alert-live-${sample.id}",
-                    "天气实况通知·${sample.label}",
-                    CATEGORY_CAPSULE
-                ) { app -> fireWeatherAlertSample(app, sample, WeatherDebugRoute.LIVE) }
-            )
-        }
-        val riskActions = weatherRiskSamples().flatMap { sample ->
-            listOf(
-                DebugAction(
-                    "weather-risk-normal-${sample.id}",
-                    "天气普通通知·${sample.label}",
-                    CATEGORY_NOTIFICATION
-                ) { app -> fireWeatherRiskSample(app, sample, WeatherDebugRoute.NORMAL) },
-                DebugAction(
-                    "weather-risk-live-${sample.id}",
-                    "天气实况通知·${sample.label}",
-                    CATEGORY_CAPSULE
-                ) { app -> fireWeatherRiskSample(app, sample, WeatherDebugRoute.LIVE) }
-            )
-        }
-        return alertActions + riskActions
-    }
-
-    private suspend fun createDeveloperTestEvents(app: App, types: List<DeveloperTestDataFactory.TestEventType>) {
-        val settings = app.settingsQueryApi.settings.value
-        val sequenceBase = ((System.currentTimeMillis() / 1000L) % 100_000L).toInt()
-        var created = 0
-        types.forEachIndexed { index, type ->
-            val bundle = DeveloperTestDataFactory.build(type, sequenceBase + index, settings)
-            bundle.patches.forEach { patch ->
-                val id = app.scheduleCenter.addEventFromPatch(patch)
-                created++
-                Log.d(DEBUG_TAG, "developer-test-event created id=$id type=${type.name} title=${patch.title}")
-            }
-            bundle.events.forEach { event ->
-                val id = app.scheduleCenter.addEvent(event)
-                created++
-                Log.d(DEBUG_TAG, "developer-test-event created id=$id type=${type.name} title=${event.title}")
-            }
-        }
-        Log.d(DEBUG_TAG, "developer-test-event batch created count=$created types=${types.joinToString { it.name }}")
-    }
-
-    private fun developerEventDebugActions(): List<DebugAction> {
-        val typeActions = DeveloperTestDataFactory.allTypes.map { type ->
-            DebugAction(
-                id = "create-dev-${type.name.lowercase()}",
-                label = "建测试事件：${type.label}",
-                category = CATEGORY_EVENT,
-                dangerous = true
-            ) { app -> createDeveloperTestEvents(app, listOf(type)) }
-        }
-        return listOf(
-            DebugAction(
-                id = "create-dev-all",
-                label = "建测试事件：全部类型",
-                category = CATEGORY_EVENT,
-                dangerous = true
-            ) { app -> createDeveloperTestEvents(app, DeveloperTestDataFactory.allTypes) }
-        ) + typeActions
-    }
-
-    private fun fireWeatherAlertSample(app: App, sample: WeatherAlertDebugSample, route: WeatherDebugRoute) {
-        val location = "调试·天气"
-        val alert = WeatherAlertData(
-            id = "debug-alert-${sample.id}",
-            eventName = sample.eventName,
-            severity = sample.severity,
-            headline = sample.headline,
-            description = sample.description,
-            instruction = sample.instruction,
-            messageTypeCode = sample.messageTypeCode
-        )
-        val timeoutMs = app.settingsQueryApi.settings.value.weatherNotificationTimeoutMs.toLong()
-        if (route.includesLive) {
-            app.capsuleCenter.showWeatherAlert(location, alert)
-        }
-        if (route.includesNormal) {
-            val result = app.notificationCenter.publishPlainNotification(
-                weatherPlainRequest(
-                    key = NotificationKey.weatherAlert("debug-alert-${route.id}-${sample.id}"),
-                    notificationId = testNotificationId("weather_alert_${route.id}_${sample.id}"),
-                    title = "调试·${sample.label}",
-                    content = alert.description,
-                    smallIcon = WeatherAlertIconMapper.officialIconRes(alert),
-                    timeoutMs = timeoutMs,
-                    source = "debug_weather_alert_${sample.id}"
-                )
-            )
-            Log.d(DEBUG_TAG, "weather-alert sample result=$result route=${route.id} sample=${sample.id}")
-        }
-        Log.d(DEBUG_TAG, "weather-alert sample fired route=${route.id} sample=${sample.id} timeoutMs=$timeoutMs")
-    }
-
-    private fun fireWeatherRiskSample(app: App, sample: WeatherRiskDebugSample, route: WeatherDebugRoute) {
-        val location = "调试·天气"
-        val risk = WeatherRiskAlert(
-            id = "debug-risk-${sample.id}",
-            title = sample.title,
-            level = sample.level,
-            weatherText = sample.weatherText,
-            message = sample.message
-        )
-        val timeoutMs = app.settingsQueryApi.settings.value.weatherNotificationTimeoutMs.toLong()
-        if (route.includesLive) {
-            app.capsuleCenter.showWeatherRisk(location, risk)
-        }
-        if (route.includesNormal) {
-            val result = app.notificationCenter.publishPlainNotification(
-                weatherPlainRequest(
-                    key = NotificationKey.weatherAlert("debug-risk-${route.id}-${sample.id}"),
-                    notificationId = testNotificationId("weather_risk_${route.id}_${sample.id}"),
-                    title = "调试·${sample.label}",
-                    content = risk.message,
-                    smallIcon = WeatherAlertIconMapper.riskIconRes(risk),
-                    timeoutMs = timeoutMs,
-                    source = "debug_weather_risk_${sample.id}"
-                )
-            )
-            Log.d(DEBUG_TAG, "weather-risk sample result=$result route=${route.id} sample=${sample.id}")
-        }
-        Log.d(DEBUG_TAG, "weather-risk sample fired route=${route.id} sample=${sample.id} timeoutMs=$timeoutMs")
-    }
-
-    private fun weatherAlertSamples(): List<WeatherAlertDebugSample> = listOf(
-        WeatherAlertDebugSample(
-            id = "heat",
-            label = "高温",
-            eventName = "高温预警",
-            severity = "Orange",
-            headline = "调试用高温橙色预警",
-            description = "预计白天最高气温将超过 37℃，请减少户外活动。",
-            instruction = "注意防暑降温，及时补水。"
-        ),
-        WeatherAlertDebugSample(
-            id = "thunder",
-            label = "雷暴",
-            eventName = "雷电预警",
-            severity = "Yellow",
-            headline = "调试用雷电黄色预警",
-            description = "未来 2 小时可能出现雷电活动，并伴有短时强降水。",
-            instruction = "请远离高处和空旷区域。"
-        ),
-        WeatherAlertDebugSample(
-            id = "rainstorm",
-            label = "暴雨",
-            eventName = "暴雨预警",
-            severity = "Orange",
-            headline = "调试用暴雨橙色预警",
-            description = "局地 3 小时降雨量可能超过 50 毫米。",
-            instruction = "注意防范积水和交通延误。"
-        ),
-        WeatherAlertDebugSample(
-            id = "wind",
-            label = "大风",
-            eventName = "大风预警",
-            severity = "Blue",
-            headline = "调试用大风蓝色预警",
-            description = "阵风可达 7 到 8 级，请注意高空坠物。",
-            instruction = "收好阳台物品，外出注意安全。"
-        ),
-        WeatherAlertDebugSample(
-            id = "haze",
-            label = "雾霾",
-            eventName = "霾预警",
-            severity = "Yellow",
-            headline = "调试用霾黄色预警",
-            description = "能见度和空气质量下降，敏感人群请减少外出。",
-            instruction = "外出建议佩戴口罩。"
-        ),
-        WeatherAlertDebugSample(
-            id = "snow",
-            label = "降雪",
-            eventName = "道路结冰预警",
-            severity = "Yellow",
-            headline = "调试用降雪道路结冰预警",
-            description = "夜间有降雪，部分路段可能结冰。",
-            instruction = "出行注意防滑，谨慎驾驶。"
-        ),
-        WeatherAlertDebugSample(
-            id = "cold",
-            label = "低温",
-            eventName = "低温预警",
-            severity = "Blue",
-            headline = "调试用低温蓝色预警",
-            description = "最低气温将降至 0℃ 附近。",
-            instruction = "注意添衣保暖。"
-        ),
-        WeatherAlertDebugSample(
-            id = "cold-wave-update",
-            label = "寒潮更新",
-            eventName = "寒潮预警",
-            severity = "Orange",
-            headline = "调试用寒潮橙色预警更新",
-            description = "寒潮影响范围扩大，48 小时内气温明显下降。",
-            instruction = "请关注后续预报并做好防寒准备。",
-            messageTypeCode = "Update"
-        ),
-        WeatherAlertDebugSample(
-            id = "thunder-cancel",
-            label = "雷电解除",
-            eventName = "雷电预警解除",
-            severity = "Cancel",
-            headline = "调试用雷电预警解除",
-            description = "本轮雷电天气过程已减弱，预警解除。",
-            instruction = "仍请留意短时天气变化。",
-            messageTypeCode = "Cancel"
-        )
-    )
-
-    private fun weatherRiskSamples(): List<WeatherRiskDebugSample> = listOf(
-        WeatherRiskDebugSample(
-            id = "heat",
-            label = "高温风险",
-            title = "高温风险提醒",
-            level = "high",
-            weatherText = "晴热高温",
-            message = "未来几小时体感温度较高，户外活动请注意防暑。"
-        ),
-        WeatherRiskDebugSample(
-            id = "rain",
-            label = "降雨风险",
-            title = "降雨风险提醒",
-            level = "medium",
-            weatherText = "雷阵雨转中雨",
-            message = "通勤时段可能出现明显降雨，请携带雨具并预留时间。"
-        ),
-        WeatherRiskDebugSample(
-            id = "haze",
-            label = "雾霾风险",
-            title = "雾霾风险提醒",
-            level = "medium",
-            weatherText = "轻度霾",
-            message = "空气扩散条件较差，敏感人群请减少户外停留。"
-        )
-    )
-
-    private fun weatherPlainRequest(
-        key: NotificationKey,
-        notificationId: Int,
-        title: String,
-        content: String,
-        smallIcon: Int,
-        timeoutMs: Long,
-        source: String
-    ): NotificationRequest {
-        return NotificationRequest(
-            key = key,
-            kind = NotificationKind.WEATHER_ALERT,
-            display = NotificationDisplaySnapshot(
-                shortText = "天气提醒",
-                primaryText = title,
-                secondaryText = content,
-                expandedText = content
-            ),
-            route = NotificationRoute.NORMAL,
-            notificationId = notificationId,
-            smallIconResId = smallIcon,
-            channelKey = App.CHANNEL_ID_WEATHER,
-            category = "weather",
-            behavior = NotificationBehavior(timeoutAfterMillis = timeoutMs),
-            tapTarget = NotificationTapTarget(NotificationTapTargetType.APP_HOME),
-            source = source
-        )
-    }
 
     private fun firePlainSample(app: App, key: String, title: String, content: String, smallIcon: Int) {
         app.notificationCenter.showPlainNotification(
@@ -708,8 +352,7 @@ object DebugActionRegistry {
         val payload = app.dailySummaryQueryApi.buildPayload(
             isMorning = isMorning,
             settings = settings.copy(isDailySummaryEnabled = true),
-            events = app.scheduleCenter.events.value,
-            weatherData = app.weatherQueryApi.weatherData.value
+            events = app.scheduleCenter.events.value
         ) ?: fallbackDailySummaryPayload(isMorning)
         app.notificationCenter.showDailySummaryNotification(payload, isMorning)
         Log.d(DEBUG_TAG, "daily-summary fired isMorning=$isMorning shortTitle=${payload.shortTitle}")
@@ -773,17 +416,9 @@ object DebugActionRegistry {
         Log.d(DEBUG_TAG, "capsule model-loading fired")
     }
 
-    private fun fireNetworkSpeed(app: App) {
-        if (!liveCapsuleReady(app)) return
-        app.capsuleCenter.updateNetworkSpeed(NetworkSpeedMonitor.NetworkSpeed(downloadSpeed = 2_621_440L, formattedSpeed = "2.5MB/s"))
-        Log.d(DEBUG_TAG, "capsule network-speed fired (需网速胶囊开关才显示)")
-    }
-
     private fun clearTestCapsules(app: App) {
         app.capsuleCenter.clearOcrCapsule()
         app.capsuleCenter.clearModelLoading()
-        app.capsuleCenter.clearWeatherCapsules()
-        app.capsuleCenter.updateNetworkSpeed(null)
         Log.d(DEBUG_TAG, "test capsules cleared")
     }
 
@@ -937,40 +572,9 @@ object DebugActionRegistry {
         Log.d(DEBUG_TAG, "verify-sort: 倒序 == 正序完全翻转 ? $reversedMatches")
     }
 
-    private enum class WeatherDebugRoute(
-        val id: String,
-        val includesNormal: Boolean,
-        val includesLive: Boolean
-    ) {
-        NORMAL("normal", includesNormal = true, includesLive = false),
-        LIVE("live", includesNormal = false, includesLive = true)
-    }
-
-    private data class WeatherAlertDebugSample(
-        val id: String,
-        val label: String,
-        val eventName: String,
-        val severity: String,
-        val headline: String,
-        val description: String,
-        val instruction: String,
-        val messageTypeCode: String = "Alert"
-    )
-
-    private data class WeatherRiskDebugSample(
-        val id: String,
-        val label: String,
-        val title: String,
-        val level: String,
-        val weatherText: String,
-        val message: String
-    )
-
     const val DEBUG_TAG = "WillDoNotify"
     private const val CATEGORY_NOTIFICATION = "通知"
     private const val CATEGORY_CAPSULE = "胶囊"
     private const val CATEGORY_EVENT = "事件"
     private const val CATEGORY_META = "元"
-    private const val DEBUG_WEATHER_ALERT_NOTIF_ID = 990101
-    private const val DEBUG_WEATHER_RISK_NOTIF_ID = 990102
 }

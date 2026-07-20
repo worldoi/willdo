@@ -5,6 +5,7 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
@@ -148,7 +149,7 @@ class TextAccessibilityService : AccessibilityService() {
         return when (settings.volumeUpLongPressAction.coerceIn(1, 3)) {
             ACTION_VOLUME_LONG_PRESS_SCREENSHOT -> true
             ACTION_VOLUME_LONG_PRESS_FLOATING -> settings.isFloatingWindowEnabled
-            ACTION_VOLUME_LONG_PRESS_VOICE -> settings.voiceInputEnabled && settings.isFloatingWindowEnabled
+            ACTION_VOLUME_LONG_PRESS_VOICE -> settings.voiceInputEnabled
             else -> false
         }
     }
@@ -372,7 +373,7 @@ class TextAccessibilityService : AccessibilityService() {
     private fun startVoiceCaptureService() {
         if (!settingsQueryApi.settings.value.voiceInputEnabled) {
             Log.w(TAG, "随口记未开启，无法启动随口记录音")
-            showResultNotification("随口记未开启", "请先在实验室中开启随口记")
+            showResultNotification("随口记未开启", "请在设置中开启随口记")
             return
         }
         if (!floatingCenter.canDrawOverlays(this)) {

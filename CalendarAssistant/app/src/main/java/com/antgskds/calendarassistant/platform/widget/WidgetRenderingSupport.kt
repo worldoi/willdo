@@ -25,10 +25,6 @@ object WidgetActions {
     const val EXTRA_WIDGET_ACTION = "widget_action"
     const val EXTRA_APP_WIDGET_ID = "app_widget_id"
     const val ACTION_OPEN_HOME = "open_home"
-    const val ACTION_OPEN_WEATHER = "open_weather"
-    const val ACTION_OPEN_COURSE = "open_course"
-    const val ACTION_COURSE_SEGMENT_UP = "com.antgskds.calendarassistant.widget.COURSE_SEGMENT_UP"
-    const val ACTION_COURSE_SEGMENT_DOWN = "com.antgskds.calendarassistant.widget.COURSE_SEGMENT_DOWN"
 }
 
 class WidgetRenderingSupport(private val context: Context) {

@@ -60,10 +60,8 @@ import com.antgskds.calendarassistant.core.ai.isRecognitionConfigReady
 import com.antgskds.calendarassistant.core.ai.recognitionConfigMissingMessage
 import com.antgskds.calendarassistant.core.util.ImageImportUtils
 import com.antgskds.calendarassistant.core.util.LunarCalendarUtils
-import com.antgskds.calendarassistant.core.course.TimeTableLayoutUtils
 import com.antgskds.calendarassistant.core.note.NoteEntity
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoEntity
-import com.antgskds.calendarassistant.feature.weather.domain.WeatherIconMapper
 import com.antgskds.calendarassistant.calendar.models.EventTags
 import com.antgskds.calendarassistant.data.model.HomeEntryKey
 import com.antgskds.calendarassistant.ui.components.AppCard
@@ -78,7 +76,6 @@ import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarHeight
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarVisualHeight
 import com.antgskds.calendarassistant.ui.event_display.SwipeableEventItem
 import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
-import com.antgskds.calendarassistant.ui.page_display.settings.appBackgroundSurfaceAlpha
 import com.antgskds.calendarassistant.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -99,8 +96,6 @@ fun HomePage(
     currentPageKey: String,
     uiSize: Int = 2,
     pickupTimestamp: Long = 0L,
-    openCourseRequestId: Long = 0L,
-    courseFeatureEnabled: Boolean = true,
     isActionExpanded: Boolean = false,
     onActionExpandedChange: (Boolean) -> Unit = {},
     searchRequestId: Int = 0,
@@ -117,10 +112,6 @@ fun HomePage(
     onRequestClearQuickMemos: () -> Unit = {},
     quickMemoCount: Int = 0,
     onOpenQuickMemoDetail: (Long) -> Unit = {},
-    onScheduleExpandedChange: (Boolean) -> Unit = {},
-    onScheduleProgressChange: (Float) -> Unit = {},
-    onScheduleOffsetChange: (Float) -> Unit = {},
-    onOpenWeatherDetail: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
@@ -218,126 +209,10 @@ fun HomePage(
         else -> 32.dp
     }
 
-    // --- 1. 手势与动画状态 ---
-    val offsetY = remember { Animatable(0f) }
-    var lastHandledOpenCourseRequestId by rememberSaveable { mutableLongStateOf(0L) }
-    val maxOffsetPx = with(LocalDensity.current) { 600.dp.toPx() }
-
-    // 触发阈值：约 100dp
-    val snapThresholdPx = with(LocalDensity.current) { 100.dp.toPx() }
 
     // 提升 listState，用于精确判断列表是否到达顶部
     val listState = rememberLazyListState()
 
-    val progress = if (courseFeatureEnabled) (offsetY.value / maxOffsetPx).coerceIn(0f, 1f) else 0f
-
-    LaunchedEffect(courseFeatureEnabled) {
-        if (!courseFeatureEnabled && offsetY.value != 0f) {
-            offsetY.snapTo(0f)
-        }
-    }
-
-    LaunchedEffect(openCourseRequestId, courseFeatureEnabled) {
-        if (
-            openCourseRequestId > 0L &&
-            openCourseRequestId != lastHandledOpenCourseRequestId
-        ) {
-            lastHandledOpenCourseRequestId = openCourseRequestId
-            if (!courseFeatureEnabled) return@LaunchedEffect
-            offsetY.animateTo(
-                targetValue = maxOffsetPx,
-                animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
-            )
-        }
-    }
-
-    LaunchedEffect(offsetY.value, courseFeatureEnabled) {
-        onScheduleExpandedChange(courseFeatureEnabled && offsetY.value > 0)
-        onScheduleProgressChange(progress)
-        onScheduleOffsetChange(if (courseFeatureEnabled) offsetY.value else 0f)
-    }
-
-    // === 核心修改：NestedScrollConnection ===
-    val nestedScrollConnection = remember(currentPageKey, courseFeatureEnabled) {
-        object : NestedScrollConnection {
-
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!courseFeatureEnabled) return Offset.Zero
-                if (offsetY.value > 0f) {
-                    val newOffset = (offsetY.value + available.y).coerceIn(0f, maxOffsetPx)
-                    if (newOffset != offsetY.value) {
-                        scope.launch { offsetY.snapTo(newOffset) }
-                    }
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (!courseFeatureEnabled) return Offset.Zero
-                if (!isTodayPage) return Offset.Zero
-
-                val isAtTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                val isListStationary = consumed.y == 0f
-
-                if (available.y > 0 && isAtTop && isListStationary) {
-                    val newOffset = (offsetY.value + available.y).coerceAtMost(maxOffsetPx)
-                    scope.launch { offsetY.snapTo(newOffset) }
-                    return Offset(0f, available.y)
-                }
-                return Offset.Zero
-            }
-
-            // === 关键修改：分区域判断意图 ===
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (!courseFeatureEnabled) return Velocity.Zero
-                if (offsetY.value > 0f) {
-                    val target = when {
-                        // 1. 速度优先 (降低阈值到 300f，轻轻一划就能触发)
-                        available.y > 300f -> maxOffsetPx // 快速下滑 -> 展开
-                        available.y < -300f -> 0f         // 快速上滑 -> 收起
-
-                        // 2. 慢速拖动时的位置判断
-                        // 分割线：屏幕中间
-                        offsetY.value < (maxOffsetPx / 2) -> {
-                            // 【上半区逻辑】：我们在尝试“打开”
-                            // 只要向下拉过的距离超过阈值，就去全开，否则回弹关闭
-                            if (offsetY.value > snapThresholdPx) maxOffsetPx else 0f
-                        }
-                        else -> {
-                            // 【下半区逻辑】：我们在尝试“关闭”
-                            // 只要向上推的距离超过阈值 (当前位置 < Max - Threshold)，就去关闭，否则回弹全开
-                            if (offsetY.value < (maxOffsetPx - snapThresholdPx)) 0f else maxOffsetPx
-                        }
-                    }
-
-                    scope.launch {
-                        offsetY.animateTo(
-                            targetValue = target,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
-                        )
-                    }
-                    return available
-                }
-                return Velocity.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (!courseFeatureEnabled) return Velocity.Zero
-                if (offsetY.value > 0f) {
-                    // 同步 onPreFling 的逻辑，确保双重保险
-                    val target = if (offsetY.value < (maxOffsetPx / 2)) {
-                        if (offsetY.value > snapThresholdPx) maxOffsetPx else 0f
-                    } else {
-                        if (offsetY.value < (maxOffsetPx - snapThresholdPx)) 0f else maxOffsetPx
-                    }
-                    scope.launch { offsetY.animateTo(target) }
-                    return available
-                }
-                return super.onPostFling(consumed, available)
-            }
-        }
-    }
 
     LaunchedEffect(searchRequestId) {
         if (searchRequestId > 0) {
@@ -389,71 +264,10 @@ fun HomePage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .nestedScroll(nestedScrollConnection)
     ) {
-        // === 背景层：课程表视图 ===
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(top = 50.dp)
-                // 处理在课表区域直接触摸滑动的逻辑
-                .draggable(
-                    state = rememberDraggableState { delta ->
-                        if (courseFeatureEnabled && offsetY.value > 0) {
-                            val newOffset = (offsetY.value + delta).coerceIn(0f, maxOffsetPx)
-                            scope.launch { offsetY.snapTo(newOffset) }
-                        }
-                    },
-                    enabled = courseFeatureEnabled,
-                    orientation = Orientation.Vertical,
-                    onDragStopped = { velocity ->
-                        if (courseFeatureEnabled) {
-                            // === 关键修改：Draggable 的松手逻辑同步 ===
-                            val target = when {
-                                velocity > 300f -> maxOffsetPx
-                                velocity < -300f -> 0f
-                                // 慢速松手判断：
-                                offsetY.value < (maxOffsetPx / 2) -> {
-                                    if (offsetY.value > snapThresholdPx) maxOffsetPx else 0f
-                                }
-                                else -> {
-                                    if (offsetY.value < (maxOffsetPx - snapThresholdPx)) 0f else maxOffsetPx
-                                }
-                            }
-
-                            scope.launch {
-                                offsetY.animateTo(target, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
-                            }
-                        }
-                    }
-                )
-                .graphicsLayer {
-                    alpha = progress
-                    scaleX = 0.9f + (0.1f * progress)
-                    scaleY = 0.9f + (0.1f * progress)
-                }
-        ) {
-
-            val maxNodes = remember(uiState.settings.timeTableJson) {
-                TimeTableLayoutUtils.nodeCountFromJson(uiState.settings.timeTableJson)
-            }
-            ScheduleView(
-                items = uiState.courseScheduleItems,
-                semesterStartDateStr = uiState.settings.semesterStartDate,
-                totalWeeks = uiState.settings.totalWeeks,
-                maxNodes = maxNodes,
-                selectedDate = uiState.selectedDate,
-                onCourseClick = { item -> onEditItem(item) }
-            )
-
-        }
-
-        // === 前景层：日程列表 + Scaffold ===
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, offsetY.value.roundToInt()) }
-                .graphicsLayer { alpha = 1f - progress }
                 .pointerInput(isActionExpanded, isSearchMode) {
                     detectTapGestures(onTap = {
                         when {
@@ -472,11 +286,7 @@ fun HomePage(
                 }
         ) {
             Scaffold(
-                containerColor = if (uiState.settings.appBackgroundImagePath.isNotBlank()) {
-                    Color.Transparent
-                } else {
-                    MaterialTheme.colorScheme.background
-                },
+                containerColor = MaterialTheme.colorScheme.background,
                 contentWindowInsets = WindowInsets(0),
                 topBar = {
                     CenterAlignedTopAppBar(
@@ -578,11 +388,9 @@ fun HomePage(
 
                             // 日期卡片
                             item {
-                                val hasAppBackground = uiState.settings.appBackgroundImagePath.isNotBlank()
                                 val themePrimary = MaterialTheme.colorScheme.primary
                                 val themeOnPrimary = MaterialTheme.colorScheme.onPrimary
                                 val isToday = uiState.selectedDate == uiState.today
-                                val weatherData = uiState.weatherData
                                 val topBaseColor = when {
                                     isToday -> themePrimary
                                     else -> MaterialTheme.colorScheme.surfaceVariant
@@ -591,16 +399,7 @@ fun HomePage(
                                     isToday -> themeOnPrimary
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 }
-                                val topBarColor = if (hasAppBackground) {
-                                    val glassAlpha = appBackgroundSurfaceAlpha(
-                                        cardAlphaPercent = uiState.settings.appBackgroundCardAlphaPercent,
-                                        dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f,
-                                        miuiBlurEnabled = uiState.settings.appBackgroundMiuiBlurTestEnabled
-                                    )
-                                    topBaseColor.copy(alpha = glassAlpha)
-                                } else {
-                                    topBaseColor
-                                }
+                                val topBarColor = topBaseColor
                                 val dateCardShape = RoundedCornerShape(16.dp)
                                 AppCard(
                                     modifier = Modifier
@@ -608,11 +407,7 @@ fun HomePage(
                                         .fillMaxWidth()
                                         .aspectRatio(0.95f)
                                         .then(
-                                            if (hasAppBackground) {
-                                                Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, dateCardShape)
-                                            } else {
-                                                Modifier
-                                            }
+                                            Modifier
                                         )
                                         .pointerInput(Unit) {
                                             var totalDrag = 0f
@@ -629,11 +424,9 @@ fun HomePage(
                                             )
                                         },
                                     shape = dateCardShape,
-                                    elevation = CardDefaults.cardElevation(defaultElevation = if (hasAppBackground) 0.dp else 6.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (hasAppBackground) {
-                                            MaterialTheme.colorScheme.surfaceContainerLow
-                                        } else if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
+                                        containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) {
                                             MaterialTheme.colorScheme.surfaceContainerLow
                                         } else {
                                             MaterialTheme.colorScheme.surface
@@ -649,37 +442,7 @@ fun HomePage(
                                                 .background(topBarColor)
                                                 .clickable { viewModel.updateSelectedDate(uiState.today) }
                                         ) {
-                                            if (weatherData != null) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .align(Alignment.CenterStart)
-                                                        .clip(RoundedCornerShape(50))
-                                                        .clickable { haptics.click(); onOpenWeatherDetail() }
-                                                        .padding(horizontal = 22.dp, vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(WeatherIconMapper.iconRes(weatherData)),
-                                                        contentDescription = weatherData.text.ifBlank { "天气" },
-                                                        modifier = Modifier.size(30.dp),
-                                                        tint = topContentColor
-                                                    )
-                                                    Spacer(Modifier.width(10.dp))
-                                                    Text(
-                                                        text = buildString {
-                                                            append(weatherData.temperature.ifBlank { "--" })
-                                                            append("°C")
-                                                            if (weatherData.text.isNotBlank()) {
-                                                                append(" · ")
-                                                                append(weatherData.text)
-                                                            }
-                                                        },
-                                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                                        color = topContentColor,
-                                                        maxLines = 1
-                                                    )
-                                                }
-                                            }
+
                                         }
                                         Column(
                                             modifier = Modifier.weight(0.8f).fillMaxWidth(),
@@ -716,7 +479,7 @@ fun HomePage(
                                             Text(
                                                 "${uiState.selectedDate.year}年${uiState.selectedDate.monthValue}月",
                                                 style = MaterialTheme.typography.bodyLarge,
-                                                color = if (hasAppBackground) MaterialTheme.colorScheme.onSurfaceVariant else Color.Gray
+                                                color = Color.Gray
                                             )
                                         }
                                     }

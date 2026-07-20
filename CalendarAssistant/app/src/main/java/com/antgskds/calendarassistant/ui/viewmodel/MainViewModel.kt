@@ -17,11 +17,9 @@ import com.antgskds.calendarassistant.core.center.NoteCenter
 import com.antgskds.calendarassistant.core.center.QuickMemoCenter
 import com.antgskds.calendarassistant.core.attachment.EventAttachmentManager
 import com.antgskds.calendarassistant.core.query.CapsuleQueryApi
-import com.antgskds.calendarassistant.feature.weather.api.WeatherOperationApi
 import com.antgskds.calendarassistant.core.query.HomeQueryApi
 import com.antgskds.calendarassistant.core.query.ScheduleInsightsQueryApi
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
-import com.antgskds.calendarassistant.feature.weather.api.WeatherQueryApi
 import com.antgskds.calendarassistant.calendar.models.EventTags
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.calendar.models.*
@@ -29,7 +27,6 @@ import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.model.RemotePrompts
 import com.antgskds.calendarassistant.data.model.RemoteAppUpdateInfo
 import com.antgskds.calendarassistant.data.model.ScheduleDisplayItem
-import com.antgskds.calendarassistant.data.model.WeatherData
 import com.antgskds.calendarassistant.data.state.CapsuleUiState
 import com.antgskds.calendarassistant.core.center.ScheduleDisplayHelper
 import com.antgskds.calendarassistant.core.note.NoteDocument
@@ -40,14 +37,8 @@ import com.antgskds.calendarassistant.core.quickmemo.QuickMemoSuggestionCodec
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoSuggestionEntity
 import com.antgskds.calendarassistant.core.quickmemo.audio.AudioPlaybackCenter
 import com.antgskds.calendarassistant.core.quickmemo.audio.AudioPlaybackState
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
-import com.antgskds.calendarassistant.core.course.CourseMeta
-import com.antgskds.calendarassistant.core.course.calculateSemesterWeek
-import com.antgskds.calendarassistant.core.course.resolveSemesterAnchor
 import com.antgskds.calendarassistant.core.model.RecurringMode
-import com.antgskds.calendarassistant.feature.weather.domain.hasWeatherConfig
 import com.antgskds.calendarassistant.ui.components.ToastType
-import com.antgskds.calendarassistant.data.model.Course
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -65,11 +56,9 @@ data class MainUiState(
     val allScheduleItems: List<ScheduleDisplayItem> = emptyList(),
     val allEventsFutureDays: Int = 7,
     val allEventsFutureLimit: LocalDate = LocalDate.now().plusDays(7),
-    val courseScheduleItems: List<ScheduleDisplayItem> = emptyList(),
     val settings: MySettings = MySettings(),
     val currentDateEvents: List<ScheduleDisplayItem> = emptyList(),
     val tomorrowEvents: List<ScheduleDisplayItem> = emptyList(),
-    val weatherData: WeatherData? = null,
     val rawEventCount: Int = 0
 )
 
@@ -101,8 +90,6 @@ class MainViewModel(
     private val settingsQueryApi: SettingsQueryApi,
     private val homeQueryApi: HomeQueryApi,
     private val scheduleInsightsQueryApi: ScheduleInsightsQueryApi,
-    private val weatherQueryApi: WeatherQueryApi,
-    private val weatherOperationApi: WeatherOperationApi,
     private val attachmentManager: EventAttachmentManager
 ) : ViewModel() {
 
@@ -137,11 +124,6 @@ class MainViewModel(
             runAutoArchiveIfEnabled("Archive")
         }
 
-        viewModelScope.launch {
-            settingsQueryApi.settings.collectLatest { settings ->
-                weatherOperationApi.refreshIfNeeded(settings)
-            }
-        }
 
         checkPromptUpdatesSilently()
         checkAppUpdatesSilently()
@@ -189,7 +171,6 @@ class MainViewModel(
         _revealedItemKey,
         scheduleCenter.events,
         settingsQueryApi.settings,
-        weatherQueryApi.weatherData,
         _timeTrigger,
         _today,
         _allEventsFutureDays
@@ -199,10 +180,9 @@ class MainViewModel(
         val events = values[2] as List<Event>
         val activeEvents = events.filter { it.archivedAt == null }
         val settings = values[3] as MySettings
-        val weatherData = values[4] as WeatherData?
-        val timeRefreshToken = values[5] as Long
-        val today = values[6] as LocalDate
-        val allEventsFutureDays = values[7] as Int
+        val timeRefreshToken = values[4] as Long
+        val today = values[5] as LocalDate
+        val allEventsFutureDays = values[6] as Int
         val snapshot = homeQueryApi.buildSnapshot(
             selectedDate = date,
             events = activeEvents,
@@ -213,13 +193,6 @@ class MainViewModel(
         val futureLimit = today.plusDays(allEventsFutureDays.toLong())
         val allItemsStart = activeEvents.minOfOrNull { it.startDate } ?: today
         val allItems = ScheduleDisplayHelper.buildDisplayItems(activeEvents, allItemsStart, futureLimit)
-        val semesterStart = resolveSemesterAnchor(settings.semesterStartDate)
-        val semesterEnd = semesterStart.plusWeeks(settings.totalWeeks.coerceAtLeast(1).toLong()).minusDays(1)
-        val courseItems = ScheduleDisplayHelper.buildDisplayItems(
-            activeEvents.filter { it.tag == EventTags.COURSE },
-            semesterStart,
-            semesterEnd
-        )
 
         MainUiState(
             selectedDate = date,
@@ -230,11 +203,9 @@ class MainViewModel(
             allScheduleItems = allItems,
             allEventsFutureDays = allEventsFutureDays,
             allEventsFutureLimit = futureLimit,
-            courseScheduleItems = courseItems,
             settings = settings,
             currentDateEvents = snapshot.currentDateEvents,
             tomorrowEvents = snapshot.tomorrowEvents,
-            weatherData = if (settings.hasWeatherConfig()) weatherData else null,
             rawEventCount = activeEvents.size
         )
     }.flowOn(Dispatchers.Default)
@@ -692,146 +663,6 @@ class MainViewModel(
             events = scheduleCenter.events.value,
             parentEventId = pid
         )
-    }
-
-    // --- 课程操作 ---
-
-    fun currentCourses(): List<Course> {
-        return CourseEventMapper.extractParentCourses(scheduleCenter.events.value, settingsQueryApi.settings.value)
-    }
-
-    fun addCourse(course: Course) = viewModelScope.launch {
-        scheduleCenter.addEvent(CourseEventMapper.toParentEvent(course, settingsQueryApi.settings.value))
-    }
-
-    fun updateCourse(course: Course) = viewModelScope.launch {
-        val events = scheduleCenter.events.value
-        val settings = settingsQueryApi.settings.value
-        val existingParent = CourseEventMapper.findParentByCourseId(events, course.id)
-        val parentId = existingParent?.id
-        val excludedTs = if (parentId != null) {
-            events.filter { it.parentId == parentId && CourseEventMapper.isCourseEvent(it) }
-                .mapNotNull { child -> CourseEventMapper.childOriginalWeek(child, settings) }
-                .distinct()
-                .mapNotNull { week -> CourseEventMapper.occurrenceTsForWeek(course, settings, week) }
-        } else {
-            emptyList()
-        }
-        val updated = CourseEventMapper.toParentEvent(course, settings, existingParent, excludedTs)
-        if (existingParent == null) scheduleCenter.addEvent(updated) else scheduleCenter.updateEvent(updated)
-    }
-
-    fun deleteCourse(course: Course) = viewModelScope.launch {
-        val parent = CourseEventMapper.findParentByCourseId(scheduleCenter.events.value, course.id) ?: return@launch
-        parent.id?.let { scheduleCenter.deleteEvent(it) }
-    }
-
-    fun clearAllCourses() = viewModelScope.launch {
-        val events = scheduleCenter.events.value
-        val courses = CourseEventMapper.extractParentCourses(events, settingsQueryApi.settings.value)
-        courses.forEach { course ->
-            CourseEventMapper.findParentByCourseId(scheduleCenter.events.value, course.id)
-                ?.id
-                ?.let { scheduleCenter.deleteEvent(it) }
-        }
-    }
-
-    fun updateCourseOccurrence(
-        item: ScheduleDisplayItem,
-        newName: String,
-        newLocation: String,
-        newStartNode: Int,
-        newEndNode: Int,
-        newDate: LocalDate
-    ) = viewModelScope.launch {
-        val settings = settingsQueryApi.settings.value
-        val startTime = CourseEventMapper.nodeStartTime(settings, newStartNode)
-        val endTime = CourseEventMapper.nodeEndTime(settings, newEndNode, startTime)
-        val startTs = toEpochSeconds(newDate, startTime)
-        val endTs = toEpochSeconds(newDate, endTime).let { if (it > startTs) it else startTs + 45 * 60 }
-
-        when (val target = item.action) {
-            is ScheduleDisplayItem.ActionTarget.RecurringOccurrence -> {
-                val parent = getEventById(target.parentId) ?: return@launch
-                val parentMeta = CourseEventMapper.parseMeta(parent.description) ?: CourseMeta(uid = parent.id?.toString().orEmpty())
-                val originalDate = java.time.Instant.ofEpochSecond(target.occurrenceTs)
-                    .atZone(java.time.ZoneId.systemDefault())
-                    .toLocalDate()
-                val originalWeek = calculateSemesterWeek(settings.semesterStartDate, originalDate)
-                val detached = parent.copy(
-                    id = null,
-                    title = newName,
-                    location = newLocation,
-                    startTS = startTs,
-                    endTS = endTs,
-                    description = CourseEventMapper.buildDetachedInstanceDescription(
-                        parentMeta = parentMeta,
-                        startNode = newStartNode,
-                        endNode = newEndNode,
-                        originalOccurrenceTs = target.occurrenceTs,
-                        originalWeek = originalWeek,
-                        originalDate = originalDate
-                    ),
-                    parentId = target.parentId,
-                    rrule = "",
-                    exdates = emptyList(),
-                    importId = ""
-                )
-                scheduleCenter.editRecurringEvent(
-                    target.parentId,
-                    detached,
-                    com.antgskds.calendarassistant.core.model.RecurringMode.THIS,
-                    target.occurrenceTs
-                )
-            }
-
-            is ScheduleDisplayItem.ActionTarget.Single -> {
-                val existing = getEventById(target.eventId) ?: return@launch
-                val meta = CourseEventMapper.parseMeta(existing.description)
-                val parentMeta = meta?.parentCourseUid
-                    ?.let { parentUid -> CourseEventMapper.findParentByCourseId(scheduleCenter.events.value, parentUid) }
-                    ?.let { CourseEventMapper.parseMeta(it.description) }
-                    ?: meta
-                    ?: CourseMeta(uid = existing.id?.toString().orEmpty())
-                val originalTs = meta?.originalOccurrenceTs ?: existing.startTS
-                val originalDate = meta?.originalDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
-                    ?: java.time.Instant.ofEpochSecond(originalTs).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
-                val originalWeek = meta?.originalWeek ?: calculateSemesterWeek(settings.semesterStartDate, originalDate)
-                scheduleCenter.updateEvent(
-                    existing.copy(
-                        title = newName,
-                        location = newLocation,
-                        startTS = startTs,
-                        endTS = endTs,
-                        description = CourseEventMapper.buildDetachedInstanceDescription(
-                            parentMeta = parentMeta,
-                            startNode = newStartNode,
-                            endNode = newEndNode,
-                            originalOccurrenceTs = originalTs,
-                            originalWeek = originalWeek,
-                            originalDate = originalDate
-                        )
-                    )
-                )
-            }
-        }
-    }
-
-    fun deleteCourseOccurrence(item: ScheduleDisplayItem) = viewModelScope.launch {
-        when (val target = item.action) {
-            is ScheduleDisplayItem.ActionTarget.RecurringOccurrence -> {
-                scheduleCenter.deleteRecurringFromUi(
-                    target.parentId,
-                    target.occurrenceTs,
-                    com.antgskds.calendarassistant.core.model.RecurringMode.THIS
-                )
-            }
-            is ScheduleDisplayItem.ActionTarget.Single -> {
-                deleteAttachmentsForEventOnIo(target.eventId)
-                scheduleCenter.deleteEvent(target.eventId)
-            }
-        }
-        _revealedItemKey.value = null
     }
 
     fun deleteRecurringItem(item: ScheduleDisplayItem, mode: RecurringMode) = viewModelScope.launch {

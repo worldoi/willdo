@@ -117,7 +117,6 @@ import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.ui.components.AppCard
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarExtraHeight
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarHeight
-import com.antgskds.calendarassistant.ui.page_display.settings.AppBackgroundStyleTheme
 import com.antgskds.calendarassistant.ui.components.PlainNoteEditor
 import com.antgskds.calendarassistant.ui.components.PlainNoteEditorController
 import com.antgskds.calendarassistant.ui.components.ToastType
@@ -151,8 +150,7 @@ fun NoteEditorScreen(
     val scope = rememberCoroutineScope()
     val haptics = rememberAppHaptics(settings.hapticFeedbackEnabled)
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val hasAppBackground = settings.appBackgroundImagePath.isNotBlank()
-    val pageContainerColor = if (hasAppBackground) Color.Transparent else MaterialTheme.colorScheme.background
+    val pageContainerColor = MaterialTheme.colorScheme.background
     val savedTitle = initialNote?.title.orEmpty()
     val savedDocument = initialNote?.document() ?: NoteDocument()
     val editorController = remember(editorSessionKey) { PlainNoteEditorController() }
@@ -355,11 +353,6 @@ fun NoteEditorScreen(
         }
     }
 
-    AppBackgroundStyleTheme(
-        enabled = hasAppBackground,
-        miuiBlurEnabled = settings.appBackgroundMiuiBlurTestEnabled,
-        cardAlphaPercent = settings.appBackgroundCardAlphaPercent
-    ) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -552,7 +545,6 @@ fun NoteEditorScreen(
         onDismiss = { pendingDelete = false },
         modifier = Modifier.padding(bottom = 24.dp + bottomInset)
     )
-    }
 
 }
 

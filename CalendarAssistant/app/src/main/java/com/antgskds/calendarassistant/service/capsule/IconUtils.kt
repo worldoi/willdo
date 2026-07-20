@@ -4,7 +4,6 @@ import android.content.Context
 import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.core.rule.RuleMatchingEngine
 import com.antgskds.calendarassistant.calendar.models.EventTags
-import com.antgskds.calendarassistant.feature.weather.domain.WeatherAlertIconMapper
 import com.antgskds.calendarassistant.data.state.CapsuleUiState
 import com.antgskds.calendarassistant.data.state.CapsuleType
 import com.antgskds.calendarassistant.core.capsule.CapsuleStateManager
@@ -23,29 +22,12 @@ object IconUtils {
 
         // 特殊类型直接返回
         when (capsule.type) {
-            CapsuleType.NETWORK_SPEED -> return R.drawable.ic_stat_net
             CapsuleType.OCR_PROGRESS -> return R.drawable.ic_stat_scan
             CapsuleType.OCR_RESULT -> return R.drawable.ic_stat_success
             CapsuleType.MODEL_LOADING -> return R.drawable.ic_model_loading
             CapsuleType.VOICE_TRANSCRIPTION -> return R.drawable.ic_stat_quickmemo
             CapsuleType.TEXT_QUICK_MEMO -> return R.drawable.ic_stat_quickmemo
             CapsuleType.QUICK_MEMO_RECORDING -> return R.drawable.ic_stat_recording
-            CapsuleType.WEATHER_ALERT -> return if (capsule.eventType == WEATHER_RISK_EVENT_TYPE) {
-                WeatherAlertIconMapper.riskIconRes(
-                    title = capsule.display.primaryText,
-                    weatherText = capsule.display.secondaryText.orEmpty(),
-                    message = listOf(capsule.content, capsule.description, capsule.display.expandedText.orEmpty()).joinToString(" ")
-                )
-            } else {
-                WeatherAlertIconMapper.iconRes(
-                    capsule.title,
-                    capsule.content,
-                    capsule.description,
-                    capsule.display.primaryText,
-                    capsule.display.secondaryText.orEmpty(),
-                    capsule.display.expandedText.orEmpty()
-                )
-            }
         }
 
         // 优先从 RuleRegistry 获取用户自定义图标
@@ -70,7 +52,7 @@ object IconUtils {
             RuleMatchingEngine.RULE_FLIGHT -> R.drawable.ic_stat_flight
             RuleMatchingEngine.RULE_TICKET -> R.drawable.ic_stat_ticket
             RuleMatchingEngine.RULE_SENDER -> R.drawable.ic_stat_sender
-            EventTags.COURSE, RuleMatchingEngine.RULE_COURSE, "__removed_course__" -> R.drawable.ic_stat_course
+            EventTags.COURSE, RuleMatchingEngine.RULE_COURSE, "__removed_course__" -> R.drawable.ic_stat_event
             EventTags.GENERAL, RuleMatchingEngine.RULE_GENERAL, "event" -> R.drawable.ic_stat_event
             else -> R.drawable.ic_notification_small
         }
@@ -87,6 +69,4 @@ object IconUtils {
     fun getScanningIcon(): Int = R.drawable.ic_stat_scan
 
     fun getSuccessIcon(): Int = R.drawable.ic_stat_success
-
-    private const val WEATHER_RISK_EVENT_TYPE = "weather_risk"
 }

@@ -2,12 +2,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 超级岛广播权限（signature 级，仅模块自身可用） -->
-    <permission
-        android:name="com.antgskds.calendarassistant.SEND_ISLAND"
-        android:protectionLevel="signature" />
-    <uses-permission android:name="com.antgskds.calendarassistant.SEND_ISLAND" />
-
     <!-- 基础网络与通知 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -38,9 +32,6 @@
     <!-- 悬浮窗权限 -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Flyme 专用 -->
-    <uses-permission android:name="flyme.permission.READ_NOTIFICATION_LIVE_STATE" />
-
     <!-- 日历同步权限 -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.WRITE_CALENDAR" />
@@ -61,25 +52,6 @@
         android:theme="@style/Theme.CalendarAssistant"
         android:enableOnBackInvokedCallback="true"
         tools:targetApi="35">
-
-        <!-- Xposed Module -->
-        <meta-data
-            android:name="xposedmodule"
-            android:value="true" />
-        <meta-data
-            android:name="xposeddescription"
-            android:value="Will do 超级岛支持" />
-        <meta-data
-            android:name="xposedminversion"
-            android:value="82" />
-        <meta-data
-            android:name="xposedscope"
-            android:value="com.antgskds.calendarassistant;com.android.systemui" />
-
-        <!-- Flyme 实况通知支持 -->
-        <meta-data
-            android:name="com.meizu.flyme.live_notification"
-            android:value="true" />
 
         <!-- Samsung 灵动岛支持 -->
         <meta-data
@@ -176,7 +148,14 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:taskAffinity=""
-            android:exported="false" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="willcalendar" android:host="voice" android:path="/record" />
+            </intent-filter>
+        </activity>
 
         <activity
             android:name=".core.service.pickup.PickupQrHandleActivity"
@@ -188,16 +167,6 @@
 
         <activity
             android:name=".platform.widget.ScheduleWidgetConfigureActivity"
-            android:exported="true"
-            android:theme="@style/Theme.CalendarAssistant" />
-
-        <activity
-            android:name=".platform.widget.WeatherWidgetConfigureActivity"
-            android:exported="true"
-            android:theme="@style/Theme.CalendarAssistant" />
-
-        <activity
-            android:name=".platform.widget.CourseWidgetConfigureActivity"
             android:exported="true"
             android:theme="@style/Theme.CalendarAssistant" />
 
@@ -334,40 +303,6 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/schedule_widget_info" />
-        </receiver>
-
-        <receiver
-            android:name=".platform.widget.WeatherWidgetProvider"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.intent.action.DATE_CHANGED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/weather_widget_info" />
-        </receiver>
-
-        <receiver
-            android:name=".platform.widget.CourseWidgetProvider"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="android.intent.action.DATE_CHANGED" />
-                <action android:name="android.intent.action.TIME_SET" />
-                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="com.antgskds.calendarassistant.widget.COURSE_SEGMENT_UP" />
-                <action android:name="com.antgskds.calendarassistant.widget.COURSE_SEGMENT_DOWN" />
-            </intent-filter>
-            <meta-data
-                android:name="android.appwidget.provider"
-                android:resource="@xml/course_widget_info" />
         </receiver>
 
         <!-- Shizuku Provider (静默提权核心组件) -->

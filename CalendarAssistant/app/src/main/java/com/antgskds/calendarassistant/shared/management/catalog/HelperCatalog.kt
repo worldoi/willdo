@@ -25,7 +25,6 @@ object HelperCatalog {
         SYNC,          // 同步
         NOTIFICATION,  // 通知
         SCHEDULE,      // 日程主体
-        WEATHER,       // 天气
         SUPPORT,       // 横切支撑
     }
 
@@ -52,21 +51,12 @@ object HelperCatalog {
         HelperEntry("正则规则偏好存储", Chain.RECOGNITION, "core/rule/RegexScheduleRulePrefs", "开发者可编辑正则规则 JSON 读写"),
 
         // —— 入库 / 日程 ——
-        HelperEntry("课程事件映射", Chain.INGEST, "core/course/CourseEventMapper", "课程表数据 → Event"),
         HelperEntry("日程展示助手", Chain.SCHEDULE, "core/center/ScheduleDisplayHelper", "日程展示字段拼装"),
 
         // —— 通知 ——
         HelperEntry("日程实况展示支持", Chain.NOTIFICATION, "shared/management/resource/notification/display/live/template/ScheduleLiveDisplaySupport", "日程胶囊展示字段裁剪/拼接"),
-        HelperEntry("天气实况展示支持", Chain.NOTIFICATION, "shared/management/resource/notification/display/live/template/WeatherLiveDisplaySupport", "天气胶囊展示字段裁剪/拼接"),
-
-        // —— 天气 ——
-        HelperEntry("天气预警图标映射", Chain.WEATHER, "feature/weather/domain/WeatherAlertIconMapper", "预警类型 → 图标"),
-        HelperEntry("天气颜色映射", Chain.WEATHER, "feature/weather/domain/WeatherColorMapper", "天气状态 → 颜色"),
-        HelperEntry("天气预报图标映射", Chain.WEATHER, "feature/weather/domain/WeatherForecastIconMapper", "预报代码 → 图标"),
-        HelperEntry("天气图标映射", Chain.WEATHER, "feature/weather/domain/WeatherIconMapper", "天气代码 → 图标"),
 
         // —— 横切支撑 ——
-        HelperEntry("背景模式样式支持", Chain.SUPPORT, "ui/page_display/settings/SettingsBackgroundStyleSupport", "背景壁纸模式下的页面颜色映射"),
         HelperEntry("应用公共 UI 组件", Chain.SUPPORT, "ui/components/AppUiComponents", "Material 默认路径下的卡片、弹窗和底部弹层外壳"),
         HelperEntry("应用玻璃表面占位", Chain.SUPPORT, "ui/components/AppGlassSurface", "统一表面组件的磨砂后端占位，当前运行态默认禁用"),
         HelperEntry("小组件渲染支持", Chain.SUPPORT, "platform/widget/WidgetRenderingSupport", "桌面小组件 RemoteViews 渲染辅助"),

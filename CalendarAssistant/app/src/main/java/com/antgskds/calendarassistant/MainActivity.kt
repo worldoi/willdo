@@ -72,11 +72,6 @@ import com.antgskds.calendarassistant.ui.page_display.HomeScreen
 import com.antgskds.calendarassistant.ui.page_display.NoteEditorScreen
 import com.antgskds.calendarassistant.ui.page_display.QuickMemoDetailPage
 import com.antgskds.calendarassistant.ui.page_display.SettingsDetailScreen
-import com.antgskds.calendarassistant.ui.page_display.settings.LocalAppBackgroundRootSize
-import com.antgskds.calendarassistant.ui.page_display.settings.LocalAppBackgroundWallpaperBitmap
-import com.antgskds.calendarassistant.ui.page_display.settings.LocalAppBackgroundAverageLuminance
-import com.antgskds.calendarassistant.ui.page_display.settings.shouldUseLightSystemBarsForAppBackground
-import com.antgskds.calendarassistant.ui.page_display.settings.WeatherDetailScreen
 import com.antgskds.calendarassistant.ui.theme.CalendarAssistantStyleTheme
 import com.antgskds.calendarassistant.ui.theme.ThemeColorScheme
 import com.antgskds.calendarassistant.ui.viewmodel.MainViewModel
@@ -181,8 +176,6 @@ class MainActivity : ComponentActivity() {
                         settingsQueryApi = app.settingsQueryApi,
                         homeQueryApi = app.homeQueryApi,
                         scheduleInsightsQueryApi = app.scheduleInsightsQueryApi,
-                        weatherQueryApi = app.weatherQueryApi,
-                        weatherOperationApi = app.weatherOperationApi,
                         attachmentManager = app.eventAttachmentManager
                     ) as T
                     modelClass.isAssignableFrom(SettingsViewModel::class.java) -> SettingsViewModel(
@@ -250,12 +243,7 @@ class MainActivity : ComponentActivity() {
                 val view = LocalView.current
                 if (!view.isInEditMode) {
                     val bgColor = MaterialTheme.colorScheme.background.toArgb()
-                    val hasAppBackground = settings.appBackgroundImagePath.isNotBlank()
-                    val lightSystemBars = if (hasAppBackground) {
-                        shouldUseLightSystemBarsForAppBackground(defaultLight = !isDarkTheme)
-                    } else {
-                        !isDarkTheme
-                    }
+                    val lightSystemBars = !isDarkTheme
                     SideEffect {
                         val window = (view.context as Activity).window
                         window.statusBarColor = Color.Transparent.toArgb()
@@ -280,7 +268,6 @@ class MainActivity : ComponentActivity() {
                 var lastWidgetActionNonce by rememberSaveable { mutableLongStateOf(0L) }
                 var lastQuickMemoDetailNonce by rememberSaveable { mutableLongStateOf(0L) }
                 var lastEventDialogNonce by rememberSaveable { mutableLongStateOf(0L) }
-                var openCourseRequestId by rememberSaveable { mutableLongStateOf(0L) }
                 val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 val floatingActionCardBottomPadding = if (currentBackStackEntry?.destination?.route == AppRoutes.Home) {
                     IntegratedFloatingBarHeight + IntegratedFloatingBarBottomSpacing + bottomInset + 16.dp
@@ -330,29 +317,12 @@ class MainActivity : ComponentActivity() {
                     if (pending.nonce == lastWidgetActionNonce) return@LaunchedEffect
                     lastWidgetActionNonce = pending.nonce
                     when (pending.action) {
-                        WidgetActions.ACTION_OPEN_WEATHER -> {
-                            navController.navigate(AppRoutes.WeatherDetail) { launchSingleTop = true }
-                        }
                         WidgetActions.ACTION_OPEN_HOME -> {
                             if (currentBackStackEntry?.destination?.route != AppRoutes.Home) {
                                 navController.navigate(AppRoutes.Home) {
                                     launchSingleTop = true
                                     popUpTo(AppRoutes.Home) { inclusive = false }
                                 }
-                            }
-                        }
-                        WidgetActions.ACTION_OPEN_COURSE -> {
-                            if (currentBackStackEntry?.destination?.route != AppRoutes.Home) {
-                                navController.navigate(AppRoutes.Home) {
-                                    launchSingleTop = true
-                                    popUpTo(AppRoutes.Home) { inclusive = false }
-                                }
-                            }
-                            if (HomeEntryKey.TODAY in homeBottomItems) {
-                                selectedHomePageKey = HomeEntryKey.TODAY
-                            }
-                            if (settings.courseFeatureEnabled) {
-                                openCourseRequestId++
                             }
                         }
                     }
@@ -378,38 +348,13 @@ class MainActivity : ComponentActivity() {
 
                 val pendingEventDialog = pendingEventDialogLaunch.value
 
-                val appBackgroundBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
-                    initialValue = null,
-                    key1 = settings.appBackgroundImagePath
-                ) {
-                    value = if (settings.appBackgroundImagePath.isBlank()) {
-                        null
-                    } else {
-                        withContext(Dispatchers.IO) {
-                            BitmapFactory.decodeFile(settings.appBackgroundImagePath)?.asImageBitmap()
-                        }
-                    }
-                }
-                var appBackgroundRootSize by remember { mutableStateOf(IntSize.Zero) }
 
-                CompositionLocalProvider(
-                    LocalAppBackgroundWallpaperBitmap provides appBackgroundBitmap,
-                    LocalAppBackgroundRootSize provides appBackgroundRootSize,
-                    LocalAppBackgroundAverageLuminance provides settings.appBackgroundAverageLuminance
-                ) {
                     // 最外层容器（包裹 NavHost 和所有弹窗）
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background)
-                            .onSizeChanged { appBackgroundRootSize = it }
                     ) {
-                        AppBackgroundLayer(
-                            enabled = settings.appBackgroundImagePath.isNotBlank(),
-                            imageBitmap = appBackgroundBitmap,
-                            blurEnabled = settings.appBackgroundWallpaperBlurEnabled,
-                            modifier = Modifier.fillMaxSize()
-                        )
                         NavHost(
                             modifier = Modifier.fillMaxSize(),
                             navController = navController,
@@ -439,7 +384,6 @@ class MainActivity : ComponentActivity() {
                                     mainViewModel = mainViewModel,
                                     settingsViewModel = settingsViewModel,
                                      pickupTimestamp = pickupEventTimestamp.value,
-                                     openCourseRequestId = openCourseRequestId,
                                       openEventId = pendingEventDialog?.eventId,
                                       openEventRequestId = pendingEventDialog?.nonce ?: 0L,
                                      selectedPageKey = selectedHomePageKey,
@@ -448,9 +392,6 @@ class MainActivity : ComponentActivity() {
                                     onDismissClipboardPrompt = { app.clipboardCodeCenter.dismissPendingPrompt() },
                                     onSelectedPageKeyChange = { pageKey ->
                                         selectedHomePageKey = if (pageKey in homeBottomItems) pageKey else homeStartPageKey
-                                    },
-                                    onOpenWeatherDetail = {
-                                        navController.navigate(AppRoutes.WeatherDetail)
                                     },
                                     onOpenNoteEditor = { noteId ->
                                         navController.navigate(AppRoutes.noteEditor(noteId))
@@ -548,25 +489,6 @@ class MainActivity : ComponentActivity() {
                                 onBack = { navController.popBackStack() },
                                 uiSize = uiState.settings.uiSize,
                                 hapticEnabled = uiState.settings.hapticFeedbackEnabled,
-                                backgroundMode = settings.appBackgroundImagePath.isNotBlank(),
-                                miuiBlurEnabled = settings.appBackgroundMiuiBlurTestEnabled,
-                                cardAlphaPercent = settings.appBackgroundCardAlphaPercent
-                            )
-                        }
-
-                        composable(
-                            route = AppRoutes.WeatherDetail,
-                            enterTransition = { navForwardEnterTransition() },
-                            exitTransition = { null },
-                            popEnterTransition = { null },
-                            popExitTransition = { navBackwardExitTransition() }
-                        ) {
-                            BackHandler(enabled = !predictiveBackEnabled) {
-                                navController.popBackStack()
-                            }
-                            WeatherDetailScreen(
-                                uiSize = settings.uiSize,
-                                onBack = { navController.popBackStack() }
                             )
                         }
 
@@ -694,7 +616,6 @@ class MainActivity : ComponentActivity() {
                     )
                         }
                     }
-                }
             }
         }
     }
@@ -802,39 +723,5 @@ private fun formatLocalModelResidueSize(bytes: Long): String {
         String.format(java.util.Locale.US, "%.2f GB", mib / 1024.0)
     } else {
         String.format(java.util.Locale.US, "%.0f MB", mib)
-    }
-}
-
-@Composable
-private fun AppBackgroundLayer(
-    enabled: Boolean,
-    imageBitmap: androidx.compose.ui.graphics.ImageBitmap?,
-    blurEnabled: Boolean,
-    modifier: Modifier = Modifier
-) {
-    if (!enabled) return
-    val blurRadiusPx = with(LocalDensity.current) { 28.dp.toPx() }
-    val bitmap = imageBitmap ?: return
-    Box(modifier = modifier) {
-        Image(
-            bitmap = bitmap,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(
-                    if (blurEnabled) {
-                        Modifier.graphicsLayer {
-                            renderEffect = BlurEffect(
-                                radiusX = blurRadiusPx,
-                                radiusY = blurRadiusPx,
-                                edgeTreatment = TileMode.Clamp
-                            )
-                        }
-                    } else {
-                        Modifier
-                    }
-                ),
-            contentScale = ContentScale.Crop
-        )
     }
 }

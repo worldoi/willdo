@@ -2,7 +2,6 @@ package com.antgskds.calendarassistant.ui.navigation
 
 object AppRoutes {
     const val Home = "home"
-    const val WeatherDetail = "weather_detail"
     const val NoteEditorBase = "note_editor"
     const val NoteEditorArg = "noteId"
     const val NoteEditorNewArg = -1L

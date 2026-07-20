@@ -1,44 +1,26 @@
 package com.antgskds.calendarassistant.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.lerp
@@ -51,7 +33,6 @@ import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.data.model.HomeEntryKey
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
-import com.antgskds.calendarassistant.ui.page_display.settings.rememberAppBackgroundStylePalette
 
 // 统一高度设定为 68dp
 val IntegratedFloatingBarHeight = 68.dp
@@ -63,12 +44,14 @@ val IntegratedFloatingBarVisualHeight =
 // 注意：这个值通常用于外部布局
 val IntegratedFloatingBarBottomSpacing = 0.dp
 
+// 全宽沉浸式底栏参数
+val IntegratedFloatingBarIconSize = 56.dp
+val IntegratedFloatingBarCornerRadius = 20.dp
+
 // --- Hydrogen 核心配色 ---
 val HydrogenBg = Color(0xFFF1F1EA)
 val HydrogenIndicator = Color(0xFFE2E2D5)
 val HydrogenContent = Color(0xFF44473E)
-val HydrogenFab = Color(0xFF4B5541)
-val HydrogenFabIcon = Color(0xFFF1F1EA)
 
 @Composable
 fun IntegratedFloatingBar(
@@ -85,77 +68,25 @@ fun IntegratedFloatingBar(
     backgroundMode: Boolean = false,
     miuiBlurEnabled: Boolean = false,
     cardAlphaPercent: Int = MySettings.APP_BACKGROUND_CARD_ALPHA_DEFAULT_PERCENT,
+    navInset: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val haptics = rememberAppHaptics()
-    val backgroundPalette = rememberAppBackgroundStylePalette(
-        enabled = backgroundMode,
-        miuiBlurEnabled = miuiBlurEnabled,
-        cardAlphaPercent = cardAlphaPercent
-    )
-    val rotation by animateFloatAsState(
-        targetValue = if (isExpanded) 45f else 0f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "fabRotation"
-    )
 
     val mdBlend = 1.0f
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val navBg = if (backgroundMode) {
-        backgroundPalette.surface
-    } else {
-        lerp(HydrogenBg, if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface, mdBlend)
-    }
-    val navIndicator = if (backgroundMode) {
-        backgroundPalette.accent
-    } else {
-        lerp(HydrogenIndicator, MaterialTheme.colorScheme.secondaryContainer, mdBlend)
-    }
-    val navContent = if (backgroundMode) {
-        backgroundPalette.content
-    } else {
-        lerp(HydrogenContent, MaterialTheme.colorScheme.onSurfaceVariant, mdBlend)
-    }
-    val fabBg = if (backgroundMode) {
-        backgroundPalette.surfaceStrong
-    } else {
-        lerp(HydrogenFab, MaterialTheme.colorScheme.primary, mdBlend)
-    }
-    val fabIcon = if (backgroundMode) {
-        backgroundPalette.content
-    } else {
-        lerp(HydrogenFabIcon, MaterialTheme.colorScheme.onPrimary, mdBlend)
-    }
+    val navBg = lerp(HydrogenBg, if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface, mdBlend)
+    val navIndicator = lerp(HydrogenIndicator, MaterialTheme.colorScheme.secondaryContainer, mdBlend)
+    val navContent = lerp(HydrogenContent, MaterialTheme.colorScheme.onSurfaceVariant, mdBlend)
 
-    val navShape = CircleShape
-    val fabShape = RoundedCornerShape(22.dp)
-    val navElevation = if (backgroundMode) 0.dp else 6.dp
-    val fabElevation = if (backgroundMode) 0.dp else 6.dp
+    // 沉浸式贴底：背景延伸到底部导航手势区，图标内容上移到手势线之上
+    val navElevation = 0.dp
     val navHeight = IntegratedFloatingBarHeight + IntegratedFloatingBarExtraHeight
-    val fabSize = IntegratedFloatingBarHeight + IntegratedFloatingBarExtraHeight
-    val navItemWidth = 72.dp
+    val barTotalHeight = navHeight + navInset
+
     val normalizedNavItems = navItems.distinct().filter {
         it == HomeEntryKey.TODAY || it == HomeEntryKey.ALL || it == HomeEntryKey.NOTE
     }
-    val navItemSpacing = if (normalizedNavItems.size >= 3) 0.dp else 4.dp
-    val navPaddingHorizontal = 6.dp
-    val navItemCount = normalizedNavItems.size.toFloat() + 1f
-
-    val navExpandedWidth = navItemWidth * navItemCount + navItemSpacing * (navItemCount - 1f) + navPaddingHorizontal * 2f
-    val navCollapsedWidth = navHeight
-    val fabCollapsedWidth = fabSize
-
-    val navWidth by animateDpAsState(
-        targetValue = if (isExpanded) navCollapsedWidth else navExpandedWidth,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "navWidth"
-    )
-    val iconAreaWidth by animateDpAsState(
-        targetValue = if (isExpanded) navExpandedWidth - navCollapsedWidth else 0.dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "iconAreaWidth"
-    )
-    val actionWidth = fabCollapsedWidth + iconAreaWidth
 
     val isMenuSelected = isSidebarOpen
     val isTabHighlightEnabled = !isSidebarOpen
@@ -211,132 +142,80 @@ fun IntegratedFloatingBar(
         }
     }
 
-    // 修改点 1：最外层 Box 允许内容溢出绘制，不强制裁剪
+    // 全宽沉浸式底栏：贴底、背景延伸到导航手势区，顶部圆角
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.BottomCenter
     ) {
-        Row(
+        FloatingContainer(
             modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = IntegratedFloatingBarShadowPadding)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .fillMaxWidth()
+                .height(barTotalHeight),
+            shape = RoundedCornerShape(
+                topStart = IntegratedFloatingBarCornerRadius,
+                topEnd = IntegratedFloatingBarCornerRadius,
+                bottomStart = 0.dp,
+                bottomEnd = 0.dp
+            ),
+            containerColor = navBg,
+            elevation = navElevation
         ) {
-            FloatingContainer(
+            Row(
                 modifier = Modifier
-                    .height(navHeight)
-                    .width(navWidth),
-                shape = navShape,
-                containerColor = navBg,
-                elevation = navElevation
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(start = 8.dp, end = 8.dp, bottom = navInset),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
             ) {
                 if (isExpanded) {
+                    // 折叠态：仅显示菜单按钮（左对齐）
                     Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = navPaddingHorizontal, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        HydrogenNavIcon(
-                            icon = if (isSidebarOpen) menuIcon else painterIconForPageKey(effectiveSelectedKey),
-                            vectorIcon = if (isSidebarOpen) null else vectorIconForPageKey(effectiveSelectedKey),
-                            isSelected = true,
-                            indicatorColor = navIndicator,
-                            contentColor = navContent,
-                            onClick = {
-                                onExpandedChange(false)
-                                if (isSidebarOpen) {
-                                    onMenuClick()
-                                } else {
-                                    currentTabClick()
-                                }
-                            },
-                            width = navHeight
-                        )
-                    }
-                } else {
-                        Row(
-                            modifier = Modifier.padding(horizontal = navPaddingHorizontal, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(navItemSpacing)
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.CenterStart
                     ) {
                         HydrogenNavIcon(
                             icon = menuIcon,
                             isSelected = isMenuSelected,
                             indicatorColor = navIndicator,
                             contentColor = navContent,
-                            onClick = onMenuClick,
-                            width = navItemWidth
+                            onClick = {
+                                onExpandedChange(false)
+                                onMenuClick()
+                            }
                         )
-
-                        normalizedNavItems.forEach { key ->
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        HydrogenNavIcon(
+                            icon = menuIcon,
+                            isSelected = isMenuSelected,
+                            indicatorColor = navIndicator,
+                            contentColor = navContent,
+                            onClick = onMenuClick
+                        )
+                    }
+                    normalizedNavItems.forEach { key ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.Center
+                        ) {
                             HydrogenNavIcon(
                                 icon = painterIconForPageKey(key),
                                 vectorIcon = vectorIconForPageKey(key),
                                 isSelected = isTabHighlightEnabled && effectiveSelectedKey == key,
                                 indicatorColor = navIndicator,
                                 contentColor = navContent,
-                                onClick = { onPageClick(key) },
-                                width = navItemWidth
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            FloatingContainer(
-                modifier = Modifier
-                    .height(fabSize)
-                    .width(actionWidth),
-                shape = fabShape,
-                containerColor = fabBg,
-                elevation = fabElevation
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(iconAreaWidth)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = isExpanded,
-                            enter = fadeIn(),
-                            exit = fadeOut()
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceEvenly
-                            ) {
-                                ActionIconButton(Icons.Default.Search, "搜索", fabIcon, onSearchClick)
-                                ActionIconButton(Icons.Default.Image, "图片", fabIcon, onImageClick)
-                                ActionIconButton(Icons.Default.Edit, "新建", fabIcon, onEditClick)
-                            }
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .width(fabCollapsedWidth)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconButton(onClick = { haptics.click(); onExpandedChange(!isExpanded) }) {
-                            Icon(
-                                Icons.Default.Add,
-                                contentDescription = "Toggle",
-                                tint = fabIcon,
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .rotate(rotation)
+                                onClick = { onPageClick(key) }
                             )
                         }
                     }
@@ -353,69 +232,37 @@ private fun HydrogenNavIcon(
     isSelected: Boolean,
     indicatorColor: Color,
     contentColor: Color,
-    onClick: () -> Unit,
-    width: Dp
+    onClick: () -> Unit
 ) {
     val haptics = rememberAppHaptics()
     Box(
         modifier = Modifier
-            .fillMaxHeight()
-            .width(width),
+            .size(IntegratedFloatingBarIconSize)
+            .clip(CircleShape)
+            .clickable { haptics.click(); onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth()
-                .padding(vertical = 4.dp, horizontal = 4.dp)
-                .clip(CircleShape)
-                .clickable { haptics.click(); onClick() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (isSelected) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth()
-                        .background(indicatorColor, CircleShape)
-                )
-            }
-            if (icon != null) {
-                Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(28.dp)
-                )
-            } else if (vectorIcon != null) {
-                Icon(
-                    imageVector = vectorIcon,
-                    contentDescription = null,
-                    tint = contentColor,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(indicatorColor, CircleShape)
+            )
         }
-    }
-}
-
-@Composable
-private fun ActionIconButton(
-    icon: ImageVector,
-    contentDescription: String,
-    tint: Color,
-    onClick: () -> Unit
-) {
-    val haptics = rememberAppHaptics()
-    IconButton(
-        onClick = { haptics.click(); onClick() },
-        modifier = Modifier.size(44.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(24.dp)
-        )
+        if (icon != null) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(26.dp)
+            )
+        } else if (vectorIcon != null) {
+            Icon(
+                imageVector = vectorIcon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(26.dp)
+            )
+        }
     }
 }

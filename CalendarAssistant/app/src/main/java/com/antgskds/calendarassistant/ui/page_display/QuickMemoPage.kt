@@ -136,9 +136,6 @@ import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarExtraHe
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarHeight
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarShadowPadding
 import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
-import com.antgskds.calendarassistant.ui.page_display.settings.AppBackgroundStyleTheme
-import com.antgskds.calendarassistant.ui.page_display.settings.LocalAppBackgroundStyleEnabled
-import com.antgskds.calendarassistant.ui.page_display.settings.rememberAppBackgroundStylePalette
 import com.antgskds.calendarassistant.ui.viewmodel.MainViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -310,11 +307,6 @@ fun QuickMemoDetailPage(
     }
     val haptics = rememberAppHaptics(hapticEnabled)
 
-    AppBackgroundStyleTheme(
-        enabled = backgroundMode,
-        miuiBlurEnabled = miuiBlurEnabled,
-        cardAlphaPercent = cardAlphaPercent
-    ) {
         val pageContainerColor = if (backgroundMode) Color.Transparent else MaterialTheme.colorScheme.background
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -405,7 +397,6 @@ fun QuickMemoDetailPage(
                 )
             }
         }
-    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -435,7 +426,7 @@ private fun QuickMemoListItem(
     val isVoice = memo.type == QuickMemoType.VOICE
     val isImage = memo.type == QuickMemoType.IMAGE
     val isPlaying = memo.audioPath != null && playbackState.audioPath == memo.audioPath && playbackState.isPlaying
-    val usesWallpaperText = LocalAppBackgroundStyleEnabled.current
+    val usesWallpaperText = false
     val primaryTextColor = if (usesWallpaperText) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurface
     val secondaryTextColor = if (usesWallpaperText) {
         MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f)
@@ -1152,35 +1143,17 @@ private fun QuickMemoDetailBottomBar(
     miuiBlurEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val backgroundPalette = rememberAppBackgroundStylePalette(
-        enabled = backgroundMode,
-        miuiBlurEnabled = miuiBlurEnabled
-    )
     val barHeight = IntegratedFloatingBarHeight + IntegratedFloatingBarExtraHeight
     val itemWidth = 72.dp
     val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val containerColor = if (backgroundMode) {
-        backgroundPalette.surface
-    } else if (isDark) {
+    val containerColor = if (isDark) {
         MaterialTheme.colorScheme.surfaceContainerHigh
     } else {
         MaterialTheme.colorScheme.surface
     }
-    val indicatorColor = if (backgroundMode) {
-        backgroundPalette.accent
-    } else {
-        MaterialTheme.colorScheme.secondaryContainer
-    }
-    val contentColor = if (backgroundMode) {
-        backgroundPalette.content
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    val disabledColor = if (backgroundMode) {
-        backgroundPalette.secondaryContent.copy(alpha = 0.46f)
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-    }
+    val indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val disabledColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
     val todoIndicatorColor = when {
         isCompleted -> MaterialTheme.colorScheme.surfaceVariant
         isTodo -> Color(0xFFF2B705).copy(alpha = 0.24f)

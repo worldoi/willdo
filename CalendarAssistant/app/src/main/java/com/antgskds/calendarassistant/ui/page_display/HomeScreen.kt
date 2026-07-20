@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import com.antgskds.calendarassistant.calendar.models.stubs.RecurringEventUtils
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,8 +23,6 @@ import com.antgskds.calendarassistant.core.event.DomainEventType
 import com.antgskds.calendarassistant.core.event.events.IngestFailedEvent
 import com.antgskds.calendarassistant.core.event.events.IngestSucceededEvent
 import com.antgskds.calendarassistant.core.event.events.RecognitionFailedEvent
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
-import com.antgskds.calendarassistant.core.course.TimeTableLayoutUtils
 import com.antgskds.calendarassistant.core.note.NoteEntity
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoEntity
 import kotlinx.coroutines.launch
@@ -46,7 +46,6 @@ import com.antgskds.calendarassistant.ui.components.ToastType
 import com.antgskds.calendarassistant.ui.components.UniversalToast
 import com.antgskds.calendarassistant.ui.dialogs.*
 import com.antgskds.calendarassistant.ui.layout.PushSlideLayout
-import com.antgskds.calendarassistant.ui.page_display.settings.AppBackgroundStyleTheme
 import com.antgskds.calendarassistant.ui.viewmodel.MainViewModel
 import com.antgskds.calendarassistant.ui.viewmodel.SettingsViewModel
 import java.time.LocalDate
@@ -78,7 +77,6 @@ fun HomeScreen(
     mainViewModel: MainViewModel,
     settingsViewModel: SettingsViewModel,
     pickupTimestamp: Long = 0L, // 【修改 1】参数改为 Long
-    openCourseRequestId: Long = 0L,
     openEventId: Long? = null,
     openEventRequestId: Long = 0L,
     selectedPageKey: String = HomeEntryKey.TODAY,
@@ -86,7 +84,6 @@ fun HomeScreen(
     onConfirmClipboardPrompt: () -> Unit = {},
     onDismissClipboardPrompt: () -> Unit = {},
     onSelectedPageKeyChange: (String) -> Unit = {},
-    onOpenWeatherDetail: () -> Unit = {},
     onOpenNoteEditor: (Long) -> Unit = {},
     onOpenQuickMemoDetail: (Long) -> Unit = {},
     onNavigateToSettings: (SettingsDestination) -> Unit
@@ -410,13 +407,7 @@ fun HomeScreen(
             IntegratedFloatingBarToastGap +
             IntegratedFloatingBarBottomSpacing +
             bottomInset
-    val hasAppBackground = settings.appBackgroundImagePath.isNotBlank()
 
-    AppBackgroundStyleTheme(
-        enabled = hasAppBackground,
-        miuiBlurEnabled = settings.appBackgroundMiuiBlurTestEnabled,
-        cardAlphaPercent = settings.appBackgroundCardAlphaPercent
-    ) {
         Box(modifier = Modifier) {
         BackHandler(enabled = isSidebarOpen) {
             isSidebarOpen = false
@@ -427,11 +418,11 @@ fun HomeScreen(
             isOpen = isSidebarOpen,
             onOpenChange = { isSidebarOpen = it },
             enableGesture = !isScheduleExpanded, // 课表展开时禁用侧边栏手势
-            contentContainerColor = if (hasAppBackground) Color.Transparent else MaterialTheme.colorScheme.background,
+            contentContainerColor = MaterialTheme.colorScheme.background,
             sidebar = {
                 SettingsSidebar(
                     isDarkMode = settings.isDarkMode,
-                    glassMode = hasAppBackground,
+                        glassMode = false,
                     hasAppUpdate = appUpdateUiState.hasUpdate,
                     onThemeToggle = { isDark ->
                         settingsViewModel.updateDarkMode(isDark)
@@ -450,8 +441,6 @@ fun HomeScreen(
                         currentPageKey = effectiveSelectedPageKey,
                         uiSize = settings.uiSize,
                         pickupTimestamp = pickupTimestamp,
-                        openCourseRequestId = openCourseRequestId,
-                        courseFeatureEnabled = settings.courseFeatureEnabled,
                         isActionExpanded = isActionExpanded,
                         onActionExpandedChange = { isActionExpanded = it },
                         searchRequestId = searchRequestId,
@@ -468,10 +457,6 @@ fun HomeScreen(
                         onRequestClearQuickMemos = { showClearQuickMemosConfirm = true },
                         quickMemoCount = quickMemoCount,
                         onOpenQuickMemoDetail = onOpenQuickMemoDetail,
-                        onScheduleExpandedChange = { isScheduleExpanded = it },
-                        onScheduleProgressChange = { scheduleProgress = it },
-                        onScheduleOffsetChange = { scheduleOffsetPx = it.coerceAtLeast(0f) },
-                        onOpenWeatherDetail = onOpenWeatherDetail
                     )
             }
         )
@@ -506,13 +491,9 @@ fun HomeScreen(
                 isSidebarOpen = false
                 openPrimaryCreateDialog()
             },
-            backgroundMode = hasAppBackground,
-            miuiBlurEnabled = settings.appBackgroundMiuiBlurTestEnabled,
-            cardAlphaPercent = settings.appBackgroundCardAlphaPercent,
+            navInset = bottomInset,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = IntegratedFloatingBarBottomSpacing)
                 .offset { IntOffset(0, scheduleOffsetPx.roundToInt()) }
                 .graphicsLayer {
                     val clamped = scheduleProgress.coerceIn(0f, 1f)
@@ -520,6 +501,19 @@ fun HomeScreen(
                 }
                 .zIndex(3f)
         )
+
+        // 右下角悬浮新建按钮：按当前页面智能新建（日程页→事件，笔记页→便签）
+        FloatingActionButton(
+            onClick = { openPrimaryCreateDialog() },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = cardFloatingBarOffset + 16.dp)
+                .zIndex(4f)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "新建")
+        }
 
         val deleteItem = scheduleItemToDelete
         val editCommitSession = recurringEditCommitSession
@@ -682,7 +676,6 @@ fun HomeScreen(
             }
         )
         }
-    }
 
     // --- 全局弹窗处理 (仅保留日常操作) ---
 
@@ -778,32 +771,7 @@ fun HomeScreen(
         )
     }
 
-    courseItemToEdit?.let { item ->
-        val meta = CourseEventMapper.parseMeta(item.description)
-        val maxNodes = TimeTableLayoutUtils.nodeCountFromJson(settings.timeTableJson)
-        if (meta != null) {
-            CourseSingleEditDialog(
-                initialName = item.title,
-                initialLocation = item.location,
-                initialStartNode = meta.startNode,
-                initialEndNode = meta.endNode,
-                initialDate = item.startDate,
-                maxNodes = maxNodes,
-                predictiveBackEnabled = settings.predictiveBackEnabled,
-                onDismiss = { courseItemToEdit = null },
-                onDelete = {
-                    mainViewModel.deleteCourseOccurrence(item)
-                    courseItemToEdit = null
-                },
-                onConfirm = { name, location, startNode, endNode, date ->
-                    mainViewModel.updateCourseOccurrence(item, name, location, startNode, endNode, date)
-                    courseItemToEdit = null
-                }
-            )
-        } else {
-            LaunchedEffect(item.stableKey) { courseItemToEdit = null }
-        }
-    }
+
 }
 
 @Composable

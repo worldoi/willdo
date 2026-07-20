@@ -141,6 +141,7 @@ fun AiSettingsPage(
     var isProviderExpanded by remember { mutableStateOf(false) }
     var isModelExpanded by remember { mutableStateOf(false) }
     var actionLoading by remember { mutableStateOf(false) }
+    var showRecognitionModePicker by remember { mutableStateOf(false) }
 
     val activeProvider = if (isMultimodalEnabled) mmProvider else textProvider
     val activeModelUrl = if (isMultimodalEnabled) mmModelUrl else textModelUrl
@@ -411,6 +412,56 @@ fun AiSettingsPage(
                 customMode = activeProvider == PROVIDER_CUSTOM
             )
 
+            // AI 开关（已从偏好设置迁入模型配置）
+            Text("AI 开关", style = sectionTitleStyle)
+            AppCard(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                    RecognitionModeSettingItem(
+                        mode = settings.recognitionMode,
+                        onClick = { showRecognitionModePicker = true },
+                        cardTitleStyle = cardTitleStyle,
+                        cardSubtitleStyle = cardSubtitleStyle,
+                        cardValueStyle = cardValueStyle
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SwitchSettingItem(
+                        title = "使用多模态AI",
+                        subtitle = "开启后图片识别将使用多模态模型",
+                        checked = settings.useMultimodalAi,
+                        onCheckedChange = { isChecked ->
+                            viewModel.updatePreference(useMultimodalAi = isChecked)
+                            showToast(if (isChecked) "已切换为多模态AI" else "已切换为文本AI")
+                        },
+                        cardTitleStyle = cardTitleStyle,
+                        cardSubtitleStyle = cardSubtitleStyle
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                    SwitchSettingItem(
+                        title = "关闭思考",
+                        subtitle = "仅适配 OpenAI",
+                        checked = settings.disableThinking,
+                        onCheckedChange = { isChecked ->
+                            viewModel.updatePreference(disableThinking = isChecked)
+                            showToast(if (isChecked) "快速模式已开启" else "快速模式已关闭")
+                        },
+                        cardTitleStyle = cardTitleStyle,
+                        cardSubtitleStyle = cardSubtitleStyle
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(120.dp))
             Text(
                 text = saveHintText,
@@ -455,6 +506,17 @@ fun AiSettingsPage(
                 .padding(bottom = 16.dp + bottomInset),
             snackbar = { data -> UniversalToast(message = data.visuals.message, type = currentToastType) }
         )
+
+        if (showRecognitionModePicker) {
+            RecognitionModePickerDialog(
+                selectedMode = settings.recognitionMode,
+                onDismiss = { showRecognitionModePicker = false },
+                onConfirm = { mode ->
+                    viewModel.updatePreference(recognitionMode = mode)
+                    showRecognitionModePicker = false
+                }
+            )
+        }
     }
 
     LaunchedEffect(isMultimodalEnabled) {

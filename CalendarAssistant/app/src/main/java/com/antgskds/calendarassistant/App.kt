@@ -44,19 +44,15 @@ import com.antgskds.calendarassistant.core.operation.IngestCommandApi
 import com.antgskds.calendarassistant.core.center.BackupCenter
 import com.antgskds.calendarassistant.core.query.ScheduleQueryApi
 import com.antgskds.calendarassistant.core.operation.SettingsOperationApi
-import com.antgskds.calendarassistant.feature.weather.api.WeatherOperationApi
 import com.antgskds.calendarassistant.core.query.CapsuleQueryApi
 import com.antgskds.calendarassistant.core.query.EventActionQueryApi
 import com.antgskds.calendarassistant.core.query.DailySummaryQueryApi
 import com.antgskds.calendarassistant.core.query.HomeQueryApi
 import com.antgskds.calendarassistant.core.query.NotificationPresentationQueryApi
-import com.antgskds.calendarassistant.core.query.NetworkSpeedProbeQueryApi
 import com.antgskds.calendarassistant.core.query.ScheduleInsightsQueryApi
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
 import com.antgskds.calendarassistant.core.query.SettingsTransformApi
-import com.antgskds.calendarassistant.feature.weather.api.WeatherQueryApi
 import com.antgskds.calendarassistant.data.operation.CapsuleStateManagerCommandApi
-import com.antgskds.calendarassistant.data.operation.WeatherRepositoryOperationApi
 import com.antgskds.calendarassistant.data.query.CapsuleStateManagerQueryApi
 import com.antgskds.calendarassistant.data.query.LocalCapsuleRoutingQueryApi
 import com.antgskds.calendarassistant.data.query.LocalAlarmRoutingQueryApi
@@ -64,11 +60,9 @@ import com.antgskds.calendarassistant.data.query.LocalDailySummaryQueryApi
 import com.antgskds.calendarassistant.data.query.LocalEventActionQueryApi
 import com.antgskds.calendarassistant.data.query.LocalHomeQueryApi
 import com.antgskds.calendarassistant.data.query.LocalNotificationPresentationQueryApi
-import com.antgskds.calendarassistant.data.query.LocalNetworkSpeedProbeQueryApi
 import com.antgskds.calendarassistant.data.query.LocalScheduleInsightsQueryApi
 import com.antgskds.calendarassistant.data.query.LocalSettingsTransformApi
 import com.antgskds.calendarassistant.data.query.LocalWidgetScheduleQueryApi
-import com.antgskds.calendarassistant.data.query.WeatherRepositoryQueryApi
 import com.antgskds.calendarassistant.data.repository.SettingsRepository
 import com.antgskds.calendarassistant.feature.api.notification.data.SharedPreferencesNotificationRegistryStore
 import com.antgskds.calendarassistant.platform.notification.alarm.AndroidSystemAlarmGateway
@@ -90,7 +84,6 @@ class App : Application() {
     companion object {
         const val CHANNEL_ID_POPUP = "calendar_assistant_popup_channel_v2"
         const val CHANNEL_ID_LIVE = "calendar_assistant_live_channel_v3"
-        const val CHANNEL_ID_WEATHER = "calendar_assistant_weather_channel_v1"
         private const val TAG = "App"
         lateinit var instance: App
             private set
@@ -177,22 +170,6 @@ class App : Application() {
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // 天气
-    // ══════════════════════════════════════════════════════════════════════
-
-    private val weatherRepository by lazy {
-        com.antgskds.calendarassistant.feature.weather.domain.WeatherRepository.getInstance(applicationContext)
-    }
-
-    val weatherQueryApi: WeatherQueryApi by lazy {
-        WeatherRepositoryQueryApi(weatherRepository)
-    }
-
-    val weatherOperationApi: WeatherOperationApi by lazy {
-        WeatherRepositoryOperationApi(weatherRepository)
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
     // 查询 API (独立于日程底层)
     // ══════════════════════════════════════════════════════════════════════
 
@@ -206,7 +183,6 @@ class App : Application() {
     val notificationPresentationQueryApi: NotificationPresentationQueryApi by lazy { LocalNotificationPresentationQueryApi() }
     val alarmRoutingQueryApi: AlarmRoutingQueryApi by lazy { LocalAlarmRoutingQueryApi() }
     val capsuleRoutingQueryApi: CapsuleRoutingQueryApi by lazy { LocalCapsuleRoutingQueryApi() }
-    val networkSpeedProbeQueryApi: NetworkSpeedProbeQueryApi by lazy { LocalNetworkSpeedProbeQueryApi() }
     val widgetScheduleQueryApi by lazy { LocalWidgetScheduleQueryApi() }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -350,7 +326,6 @@ class App : Application() {
             settingsQueryApi = settingsQueryApi,
             permissionCenter = permissionCenter,
             floatingCenter = floatingCenter,
-            networkSpeedProbeQueryApi = networkSpeedProbeQueryApi,
             capsuleCenter = capsuleCenter,
             appScope = appScope
         )
@@ -376,7 +351,6 @@ class App : Application() {
             calendarQueryApi = calendarCenter,
             settingsQueryApi = settingsQueryApi,
             widgetScheduleQueryApi = widgetScheduleQueryApi,
-            weatherQueryApi = weatherQueryApi,
             appScope = appScope
         )
     }
@@ -431,8 +405,7 @@ class App : Application() {
         quickMemoCenter.start()
         AppLogger.i(TAG, "schedule events refreshed count=${scheduleCenter.events.value.size}")
         scheduleCenter.onScheduleChanged = {
-            widgetCenter.requestRefresh(com.antgskds.calendarassistant.platform.widget.WidgetType.SCHEDULE)
-            widgetCenter.requestRefresh(com.antgskds.calendarassistant.platform.widget.WidgetType.COURSE)
+            widgetCenter.requestRefresh()
         }
 
         appScope.launch(Dispatchers.IO) {
@@ -446,7 +419,6 @@ class App : Application() {
 
         // 注册内容源
         ContentRegistry.register(ContentDefinition(ContentSourceType.SCHEDULE, "日程", true, true))
-        ContentRegistry.register(ContentDefinition(ContentSourceType.WEATHER, "天气", true, true))
         ContentRegistry.register(ContentDefinition(ContentSourceType.VOICE_CAPTURE, "随口记", true, false))
         ContentRegistry.register(ContentDefinition(ContentSourceType.IMAGE_SHARE, "图片分享", false, false))
 
@@ -476,10 +448,7 @@ class App : Application() {
             val liveChannel = NotificationChannel(CHANNEL_ID_LIVE, "实况胶囊", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "进行中日程的实况胶囊"; setSound(null, null); setShowBadge(false)
             }
-            val weatherChannel = NotificationChannel(CHANNEL_ID_WEATHER, "天气预警", NotificationManager.IMPORTANCE_HIGH).apply {
-                description = "天气预警和风险提醒"; enableLights(true); enableVibration(true)
-            }
-            notificationManager.createNotificationChannels(listOf(popupChannel, liveChannel, weatherChannel))
+            notificationManager.createNotificationChannels(listOf(popupChannel, liveChannel))
         }
     }
 

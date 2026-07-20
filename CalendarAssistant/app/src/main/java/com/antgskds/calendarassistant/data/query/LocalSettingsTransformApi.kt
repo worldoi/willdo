@@ -20,7 +20,6 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         pickupAggregation: Boolean?,
         hapticFeedbackEnabled: Boolean?,
         edgeBarEnabled: Boolean?,
-        networkSpeedCapsule: Boolean?,
         floatingWindow: Boolean?,
         advanceReminderEnabled: Boolean?,
         advanceReminderMinutes: Int?,
@@ -56,7 +55,6 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         floatingVoiceLongPressEnabled: Boolean?,
         floatingTextQuickMemoAutoPinEnabled: Boolean?,
         voiceQuickMemoAutoPinEnabled: Boolean?,
-        appBackgroundCardAlphaPercent: Int?,
         widgetThemeMode: Int?,
         widgetBackgroundAlpha: Float?,
         developerOptionsUnlocked: Boolean?,
@@ -64,9 +62,7 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         developerOptionsDisabledAtMillis: Long?,
         homeBottomItems: List<String>?,
         homeStartPageKey: String?,
-        weatherLocationStabilityRequiredHits: Int?,
         liveNotificationTemplateMode: String?,
-        courseFeatureEnabled: Boolean?
     ): MySettings {
         var updated = current
         if (showTomorrow != null) updated = updated.copy(showTomorrowEvents = showTomorrow)
@@ -85,7 +81,6 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         if (pickupAggregation != null) updated = updated.copy(isPickupAggregationEnabled = pickupAggregation)
         if (hapticFeedbackEnabled != null) updated = updated.copy(hapticFeedbackEnabled = hapticFeedbackEnabled)
         if (edgeBarEnabled != null) updated = updated.copy(edgeBarEnabled = edgeBarEnabled)
-        if (networkSpeedCapsule != null) updated = updated.copy(isNetworkSpeedCapsuleEnabled = networkSpeedCapsule)
         if (floatingWindow != null) updated = updated.copy(isFloatingWindowEnabled = floatingWindow)
         if (advanceReminderEnabled != null) updated = updated.copy(isAdvanceReminderEnabled = advanceReminderEnabled)
         if (advanceReminderMinutes != null) updated = updated.copy(advanceReminderMinutes = advanceReminderMinutes)
@@ -143,11 +138,6 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         if (voiceQuickMemoAutoPinEnabled != null) {
             updated = updated.copy(voiceQuickMemoAutoPinEnabled = voiceQuickMemoAutoPinEnabled)
         }
-        if (appBackgroundCardAlphaPercent != null) {
-            updated = updated.copy(
-                appBackgroundCardAlphaPercent = MySettings.normalizeAppBackgroundCardAlphaPercent(appBackgroundCardAlphaPercent)
-            )
-        }
         if (widgetThemeMode != null) updated = updated.copy(widgetThemeMode = widgetThemeMode.coerceIn(0, 2))
         if (widgetBackgroundAlpha != null) updated = updated.copy(widgetBackgroundAlpha = widgetBackgroundAlpha.coerceIn(0.6f, 1f))
         if (developerOptionsUnlocked != null) updated = updated.copy(developerOptionsUnlocked = developerOptionsUnlocked)
@@ -155,13 +145,9 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         if (developerOptionsDisabledAtMillis != null) updated = updated.copy(developerOptionsDisabledAtMillis = developerOptionsDisabledAtMillis)
         if (homeBottomItems != null) updated = updated.copy(homeBottomItems = homeBottomItems)
         if (homeStartPageKey != null) updated = updated.copy(homeStartPageKey = homeStartPageKey)
-        if (weatherLocationStabilityRequiredHits != null) {
-            updated = updated.copy(weatherLocationStabilityRequiredHits = weatherLocationStabilityRequiredHits.coerceIn(1, 3))
-        }
         if (liveNotificationTemplateMode != null) {
             updated = updated.copy(liveNotificationTemplateMode = LiveNotificationTemplateMode.normalize(liveNotificationTemplateMode))
         }
-        if (courseFeatureEnabled != null) updated = updated.copy(courseFeatureEnabled = courseFeatureEnabled)
 
         val sanitizedBottomItems = sanitizeHomeBottomItems(updated.homeBottomItems)
         val sanitizedStartPage = sanitizeHomeStartPageKey(updated.homeStartPageKey, sanitizedBottomItems)

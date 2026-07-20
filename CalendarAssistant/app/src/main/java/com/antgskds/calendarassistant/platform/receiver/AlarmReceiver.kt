@@ -15,8 +15,6 @@ import com.antgskds.calendarassistant.core.center.ScheduleDisplayHelper
 import com.antgskds.calendarassistant.core.query.AlarmRoute
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.calendar.models.*
-import com.antgskds.calendarassistant.data.state.CapsuleUiState
-import com.antgskds.calendarassistant.service.capsule.miui.MiuiIslandManager
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.normal.ScheduleNormalDisplay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -213,26 +211,12 @@ class AlarmReceiver : BroadcastReceiver() {
      */
     private fun handleCapsuleRefresh(context: Context, eventId: String, title: String, eventRuleId: String) {
         val app = context.applicationContext as App
-        if (app.reminderCenter.isMiuiIslandMode(app.capsuleRoutingQueryApi)) {
-            Log.d(TAG, "MIUI 岛模式，刷新胶囊状态: $title")
-            app.reminderCenter.refreshCapsuleState()
-            when (val state = app.capsuleCenter.currentState()) {
-                is CapsuleUiState.Active -> MiuiIslandManager.update(context, state.capsules)
-                is CapsuleUiState.None -> MiuiIslandManager.clear(context)
-            }
-            return
-        }
         Log.d(TAG, "刷新胶囊: $title (准点时刷新文案)")
         app.reminderCenter.refreshCapsuleState()
     }
 
     private fun handleCapsuleEnd(context: Context, eventId: String, eventRuleId: String) {
         val app = context.applicationContext as App
-        if (app.reminderCenter.isMiuiIslandMode(app.capsuleRoutingQueryApi)) {
-            Log.d(TAG, "MIUI 岛模式，结束胶囊刷新")
-            app.reminderCenter.refreshCapsuleState()
-            return
-        }
         app.reminderCenter.refreshCapsuleState()
     }
 

@@ -1,58 +1,40 @@
-# ===== Core Build Outputs =====
-*.apk
-*.aab
-*.aar
-*.ap_
-*.class
-*.dex
+# ===== Build outputs =====
+.gradle/
+build/
+.kotlin/
+**/build/
+.externalNativeBuild/
+.cxx/
+captures/
 
-# ===== Build Directories (Key: recursive patterns) =====
-/build/
-/app/build/
-**/release/
-**/debug/
-.externalNativeBuild
-.cxx
-/captures
-
-# ===== Gradle =====
-.gradle
-gradle-app.setting
-
-# ===== Local Configuration =====
+# ===== Local machine-specific config =====
 local.properties
-opencode.json
 
-# ===== IDE (Android Studio/IntelliJ) =====
+# ===== IDE =====
 *.iml
 .idea/
-# Keep necessary shared IDE configurations
-!.idea/codeStyles/
-!.idea/runConfigurations/
-# Detailed rules from GitHub template
-misc.xml
-deploymentTargetDropDown.xml
-render.experimental.xml
-
-# ===== Other Important Rules from GitHub Template =====
-# Log/OS files
-*.log
-# Keystore files
-*.jks
-*.keystore
-# Google Services
-google-services.json
-# Android Profiling
-*.hprof
-output-metadata.json
-
-# ===== System Files =====
+*.ipr
+*.iws
+.vscode/
 .DS_Store
-Thumbs.dbn
+Thumbs.db
 
-# ===== Claude 相关 =====
-.claude/
-CalendarAssistant/.claude/
+# ===== Logs (large crash dumps) =====
+*.log
+hs_err_pid*.log
+replay_pid*.log
 
-# ===== 本地配置（避免误提交） =====
-settings.local.json
+# ===== Android artifacts =====
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# ===== Local agent / tooling memory (do not publish) =====
+.workbuddy/
+
+# ===== Local toolchain / SDK homes (cache, do not publish) =====
+.android-home/
+.gradle-home/
+.gradle-cache/
+main_head.kt

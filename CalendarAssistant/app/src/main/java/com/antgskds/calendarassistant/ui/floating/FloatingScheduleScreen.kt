@@ -145,12 +145,6 @@ import androidx.compose.ui.zIndex
 import android.content.Context
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.calendar.models.*
-import com.antgskds.calendarassistant.data.model.WeatherData
-import com.antgskds.calendarassistant.data.model.WeatherDailyForecast
-import com.antgskds.calendarassistant.data.model.WeatherHourlyForecast
-import com.antgskds.calendarassistant.data.model.displayLocationName
-import com.antgskds.calendarassistant.feature.weather.domain.WeatherForecastIconMapper
-import com.antgskds.calendarassistant.feature.weather.domain.WeatherIconMapper
 import com.antgskds.calendarassistant.core.rule.ActionIconType
 import com.antgskds.calendarassistant.core.content.EventTimelinePresenter
 import com.antgskds.calendarassistant.core.rule.RuleMatchingEngine
@@ -217,8 +211,6 @@ fun FloatingScheduleScreen(
     voiceCaptureState: QuickMemoVoiceCaptureState = QuickMemoVoiceCaptureState(),
     recentVoiceMemoId: Long? = null,
     audioPlaybackState: AudioPlaybackState = AudioPlaybackState(),
-    weatherData: WeatherData? = null,
-    weatherForecastRange: Int = 0,
     expandSide: String = "RIGHT",
     initialMode: FloatingInputMode = FloatingInputMode.SCHEDULE,
     initialModeRequestKey: Long = 0L,
@@ -361,8 +353,6 @@ fun FloatingScheduleScreen(
                 scheduleItems = scheduleItems,
                 quickMemos = quickMemos,
                 audioPlaybackState = audioPlaybackState,
-                weatherData = weatherData,
-                weatherForecastRange = weatherForecastRange,
                 currentMode = currentMode,
                 expandFromLeft = expandFromLeft,
                 modifier = Modifier
@@ -739,8 +729,6 @@ fun TimeWheelList(
     scheduleItems: List<ScheduleDisplayItem>,
     quickMemos: List<QuickMemoEntity> = emptyList(),
     audioPlaybackState: AudioPlaybackState = AudioPlaybackState(),
-    weatherData: WeatherData? = null,
-    weatherForecastRange: Int = 0,
     currentMode: FloatingInputMode = FloatingInputMode.SCHEDULE,
     expandFromLeft: Boolean = false,
     modifier: Modifier = Modifier,
@@ -870,8 +858,7 @@ fun TimeWheelList(
         val nowSeconds = System.currentTimeMillis() / 1000L
         val firstUpcoming = displayScheduleItems.indexOfFirst { it.endTS >= nowSeconds }
         if (firstUpcoming > 0) {
-            val headerOffset = if (weatherData != null) 1 else 0
-            listState.scrollToItem(firstUpcoming + headerOffset)
+            listState.scrollToItem(firstUpcoming)
         }
     }
 
@@ -884,20 +871,6 @@ fun TimeWheelList(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.ime)
         ) {
-            if (weatherData != null) {
-                item(key = "weather_header") {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = cardAlignment
-                    ) {
-                        FloatingWeatherCard(
-                            weatherData = weatherData,
-                            forecastRange = weatherForecastRange,
-                            modifier = cardModifier
-                        )
-                    }
-                }
-            }
             if (currentMode == FloatingInputMode.NOTE) {
                 items(displayQuickMemos, key = { "quick_memo_${it.id ?: it.hashCode()}" }) { memo ->
                     val memoKey = quickMemoOrderKey(memo)
@@ -2019,229 +1992,6 @@ private fun floatingQuickMemoStatusText(memo: QuickMemoEntity): String {
         memo.transcriptionStatus == QuickMemoTranscriptionStatus.SUCCESS -> "已完成"
         else -> "仅音频"
     }
-}
-
-@Composable
-private fun FloatingWeatherCard(
-    weatherData: WeatherData,
-    forecastRange: Int,
-    modifier: Modifier = Modifier
-) {
-    val now = remember { LocalDateTime.now() }
-    var isExpanded by remember { mutableStateOf(false) }
-    val haptics = rememberAppHaptics()
-    val forecastMode = remember(forecastRange) { FloatingWeatherForecastMode.fromValue(forecastRange) }
-    val weekText = remember(now) {
-        now.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.CHINESE)
-    }
-    Surface(
-        modifier = modifier.clickable { haptics.click(); isExpanded = !isExpanded },
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 4.dp
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = painterResource(WeatherIconMapper.iconRes(weatherData)),
-                    contentDescription = weatherData.text.ifBlank { "天气" },
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = weatherData.text.ifBlank { "天气" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "${weatherData.temperature.ifBlank { "--" }}°C",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                val locationName = weatherData.displayLocationName(short = true)
-                if (locationName.isNotBlank()) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = locationName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
-                }
-            }
-            Text(
-                text = "${now.dayOfMonth}号 $weekText · ${weatherData.windDir.ifBlank { "--" }}${weatherData.windScale.ifBlank { "--" }}级 · 湿度 ${weatherData.humidity.ifBlank { "--" }}%",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                AnimatedContent(
-                    targetState = forecastMode,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "floating_weather_forecast_content"
-                ) { mode ->
-                    when (mode) {
-                        FloatingWeatherForecastMode.Hourly24 -> FloatingHourlyForecastRow(weatherData.hourlyForecast.take(24))
-                        FloatingWeatherForecastMode.Daily3 -> FloatingDailyForecastRow(weatherData.dailyForecast.take(3))
-                        FloatingWeatherForecastMode.Daily5 -> FloatingDailyForecastRow(weatherData.dailyForecast.take(5))
-                    }
-                }
-            }
-        }
-    }
-}
-
-private enum class FloatingWeatherForecastMode(
-    val value: Int,
-    val label: String
-) {
-    Hourly24(0, "24小时"),
-    Daily3(1, "未来3天"),
-    Daily5(2, "未来5天");
-
-    companion object {
-        fun fromValue(value: Int): FloatingWeatherForecastMode {
-            return entries.firstOrNull { it.value == value } ?: Hourly24
-        }
-    }
-}
-
-@Composable
-private fun FloatingHourlyForecastRow(hours: List<WeatherHourlyForecast>) {
-    if (hours.isEmpty()) {
-        FloatingWeatherEmptyText("暂无24小时预报")
-        return
-    }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(hours) { hour ->
-            FloatingHourlyWeather(hour)
-        }
-    }
-}
-
-@Composable
-private fun FloatingDailyForecastRow(days: List<WeatherDailyForecast>) {
-    if (days.isEmpty()) {
-        FloatingWeatherEmptyText("暂无未来天气预报")
-        return
-    }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(days) { day ->
-            FloatingDailyWeather(day)
-        }
-    }
-}
-
-@Composable
-private fun FloatingWeatherEmptyText(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
-}
-
-@Composable
-private fun FloatingHourlyWeather(hour: WeatherHourlyForecast) {
-    Column(
-        modifier = Modifier
-            .width(58.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-            .padding(vertical = 8.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = formatWeatherHour(hour.fxTime),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Icon(
-            painter = painterResource(WeatherForecastIconMapper.iconRes(hour.text, hour.icon)),
-            contentDescription = hour.text,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = "${hour.temp.ifBlank { "--" }}°",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-@Composable
-private fun FloatingDailyWeather(day: WeatherDailyForecast) {
-    Column(
-        modifier = Modifier
-            .width(74.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
-            .padding(vertical = 8.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = formatWeatherDay(day.fxDate),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
-        )
-        Icon(
-            painter = painterResource(WeatherForecastIconMapper.iconRes(day.textDay, day.iconDay)),
-            contentDescription = day.textDay,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Text(
-            text = compactFloatingDayWeather(day),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = "${day.tempMin.ifBlank { "--" }}°/${day.tempMax.ifBlank { "--" }}°",
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1
-        )
-    }
-}
-
-private fun formatWeatherHour(value: String): String {
-    return runCatching { OffsetDateTime.parse(value).format(DateTimeFormatter.ofPattern("HH")) }.getOrDefault("--")
-}
-
-private fun formatWeatherDay(value: String): String {
-    return runCatching {
-        val date = LocalDate.parse(value)
-        date.dayOfWeek.getDisplayName(java.time.format.TextStyle.SHORT, Locale.CHINESE)
-    }.getOrDefault("--")
-}
-
-private fun compactFloatingDayWeather(day: WeatherDailyForecast): String {
-    val dayText = day.textDay.ifBlank { "--" }
-    val nightText = day.textNight.ifBlank { "" }
-    return if (nightText.isBlank() || dayText == nightText) dayText else "${dayText}转$nightText"
 }
 
 @Composable

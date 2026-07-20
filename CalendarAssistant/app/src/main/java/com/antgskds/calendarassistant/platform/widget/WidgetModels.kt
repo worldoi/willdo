@@ -3,9 +3,7 @@ package com.antgskds.calendarassistant.platform.widget
 import com.antgskds.calendarassistant.data.model.WidgetThemeMode
 
 enum class WidgetType(val storageKey: String, val displayName: String) {
-    SCHEDULE("schedule", "日程小组件"),
-    WEATHER("weather", "天气小组件"),
-    COURSE("course", "课表小组件");
+    SCHEDULE("schedule", "日程小组件");
 
     companion object {
         fun fromStorageKey(value: String?): WidgetType? = entries.firstOrNull { it.storageKey == value }

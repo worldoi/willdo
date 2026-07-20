@@ -5,7 +5,6 @@ import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.calendar.models.EventTags
 import com.antgskds.calendarassistant.calendar.models.Event
 import com.antgskds.calendarassistant.calendar.models.*
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
 import com.antgskds.calendarassistant.core.util.stripSourceImageMarkers
 import com.antgskds.calendarassistant.data.model.LiveNotificationTemplateMode
 import com.antgskds.calendarassistant.service.capsule.CapsuleActionSpec
@@ -49,7 +48,7 @@ internal object EventPresentationInternals {
             RuleMatchingEngine.RULE_FLIGHT -> resolveFlightDisplay(event)
             RuleMatchingEngine.RULE_TICKET -> resolveTicketDisplay(event, isExpired)
             RuleMatchingEngine.RULE_SENDER -> resolveSenderDisplay(event)
-            RuleMatchingEngine.RULE_COURSE -> resolveCourseDisplay(event)
+            RuleMatchingEngine.RULE_COURSE -> resolveGeneralDisplay(event)
             else -> resolveGeneralDisplay(event)
         }
     }
@@ -117,8 +116,8 @@ internal object EventPresentationInternals {
             RuleMatchingEngine.RULE_FLIGHT -> R.drawable.ic_stat_flight
             RuleMatchingEngine.RULE_TICKET -> R.drawable.ic_stat_ticket
             RuleMatchingEngine.RULE_SENDER -> R.drawable.ic_stat_sender
-            RuleMatchingEngine.RULE_COURSE -> R.drawable.ic_stat_course
-            "__removed_course__" -> R.drawable.ic_stat_course
+            RuleMatchingEngine.RULE_COURSE -> R.drawable.ic_stat_event
+            "__removed_course__" -> R.drawable.ic_stat_event
             RuleMatchingEngine.RULE_GENERAL -> R.drawable.ic_stat_event
             else -> R.drawable.ic_notification_small
         }
@@ -442,11 +441,6 @@ internal object EventPresentationInternals {
             templateMode = templateMode,
             action = action
         )
-    }
-
-    private fun resolveCourseDisplay(event: Event): Triple<String, String?, String?> {
-        val desc = CourseEventMapper.displayDescription(event.description, event.location).takeIf { it.isNotBlank() }
-        return Triple(event.title.ifBlank { "课程" }, desc, null)
     }
 
     private fun parseTransport(event: Event): TransportInfo {

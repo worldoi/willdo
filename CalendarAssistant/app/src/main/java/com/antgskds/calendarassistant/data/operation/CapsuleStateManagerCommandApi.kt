@@ -2,20 +2,13 @@ package com.antgskds.calendarassistant.data.operation
 
 import com.antgskds.calendarassistant.core.capsule.CapsuleStateManager
 import com.antgskds.calendarassistant.core.operation.CapsuleCommandApi
-import com.antgskds.calendarassistant.data.model.WeatherAlertData
-import com.antgskds.calendarassistant.data.model.WeatherRiskAlert
 import com.antgskds.calendarassistant.service.capsule.CapsuleActionSpec
-import com.antgskds.calendarassistant.service.capsule.NetworkSpeedMonitor
 
 class CapsuleStateManagerCommandApi(
     private val capsuleStateManager: CapsuleStateManager
 ) : CapsuleCommandApi {
     override fun forceRefresh() {
         capsuleStateManager.forceRefresh()
-    }
-
-    override fun updateNetworkSpeed(speed: NetworkSpeedMonitor.NetworkSpeed?) {
-        capsuleStateManager.updateNetworkSpeed(speed)
     }
 
     override fun showOcrProgress(title: String, content: String) {
@@ -65,17 +58,5 @@ class CapsuleStateManagerCommandApi(
 
     override fun clearModelLoading() {
         capsuleStateManager.clearModelLoading()
-    }
-
-    override fun showWeatherAlert(locationName: String, alert: WeatherAlertData) {
-        capsuleStateManager.showWeatherAlert(locationName, alert)
-    }
-
-    override fun showWeatherRisk(locationName: String, risk: WeatherRiskAlert) {
-        capsuleStateManager.showWeatherRisk(locationName, risk)
-    }
-
-    override fun clearWeatherCapsules() {
-        capsuleStateManager.clearWeatherCapsules()
     }
 }

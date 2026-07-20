@@ -16,6 +16,9 @@ object AppLogger {
     private val lineFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
     @Volatile private var appContext: Context? = null
 
+    /** 是否把日志写入文件（Download/WillDo/...）。默认关闭，避免运行期持续生成 log 文件。 */
+    @JvmField var fileLoggingEnabled: Boolean = false
+
     fun init(context: Context) {
         appContext = context.applicationContext
         i("AppLogger", "app logger initialized")
@@ -36,6 +39,7 @@ object AppLogger {
             Log.println(priority, tag, "$message\n${Log.getStackTraceString(throwable)}")
         }
         val context = appContext ?: return
+        if (!fileLoggingEnabled) return
         synchronized(lock) {
             runCatching {
                 rotateIfNeeded(context)

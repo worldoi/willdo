@@ -35,12 +35,10 @@ class DailySummaryReceiver : BroadcastReceiver() {
 
                 val settings = app.settingsQueryApi.settings.value
                 val isMorning = (type == TYPE_MORNING)
-                val cachedWeather = app.weatherQueryApi.weatherData.value
                 val payload = app.dailySummaryQueryApi.buildPayload(
                     isMorning = isMorning,
                     settings = settings,
-                    events = app.scheduleCenter.events.value,
-                    weatherData = cachedWeather
+                    events = app.scheduleCenter.events.value
                 ) ?: return@launch
 
                 if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)

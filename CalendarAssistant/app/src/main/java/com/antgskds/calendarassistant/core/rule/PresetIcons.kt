@@ -23,7 +23,6 @@ object PresetIcons {
         PresetIcon("ic_stat_ticket", "取票"),
         PresetIcon("ic_stat_sender", "寄件"),
         // 其他
-        PresetIcon("ic_stat_course", "课程"),
         PresetIcon("ic_stat_net", "网络"),
         PresetIcon("ic_stat_scan", "扫描"),
         PresetIcon("ic_stat_success", "成功")

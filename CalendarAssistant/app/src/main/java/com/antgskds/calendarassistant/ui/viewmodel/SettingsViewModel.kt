@@ -12,11 +12,8 @@ import com.antgskds.calendarassistant.core.center.BackupCenter
 import com.antgskds.calendarassistant.core.center.DiagnosticLogCenter
 import com.antgskds.calendarassistant.core.center.DuplicateEventCleanupCenter
 import com.antgskds.calendarassistant.core.center.DuplicateEventCleanupResult
-import com.antgskds.calendarassistant.core.center.ParsedCourseImport
 import com.antgskds.calendarassistant.core.center.ScheduleCenter
 import com.antgskds.calendarassistant.core.center.SyncCenter
-import com.antgskds.calendarassistant.core.center.ImportMode
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
 import com.antgskds.calendarassistant.core.operation.SettingsOperationApi
 import com.antgskds.calendarassistant.core.note.LegacyNoteMigrationCenter
 import com.antgskds.calendarassistant.core.note.LegacyNoteMigrationResult
@@ -31,7 +28,6 @@ import com.antgskds.calendarassistant.data.model.FloatingBallGestureAction
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.model.UiStyle
 import com.antgskds.calendarassistant.data.model.sanitizeEventColorPaletteHex
-import com.antgskds.calendarassistant.feature.appearance.domain.AppBackgroundImageStore
 import com.antgskds.calendarassistant.ui.theme.ThemeColorScheme
 import com.antgskds.calendarassistant.ui.theme.normalizeThemeHexColor
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +52,6 @@ class SettingsViewModel(
     private val legacyNoteMigrationCenter: LegacyNoteMigrationCenter,
     private val duplicateEventCleanupCenter: DuplicateEventCleanupCenter
 ) : ViewModel() {
-    private val backgroundImageStore = AppBackgroundImageStore(appContext)
 
     // 直接观察 QueryApi 的数据源
     val settings = settingsQueryApi.settings
@@ -122,25 +117,6 @@ class SettingsViewModel(
         }
     }
 
-    // 更新作息时间 JSON
-    fun updateTimeTable(json: String, configJson: String? = null) {
-        viewModelScope.launch {
-            val current = settings.value
-            val updated = if (configJson != null) {
-                current.copy(timeTableJson = json, timeTableConfigJson = configJson)
-            } else {
-                current.copy(timeTableJson = json)
-            }
-            settingsOperationApi.updateSettings(updated)
-            remapCourseEventsForSettings(updated)
-        }
-    }
-
-    fun updateTimeTableConfig(json: String) {
-        viewModelScope.launch {
-            settingsOperationApi.updateSettings(settings.value.copy(timeTableConfigJson = json))
-        }
-    }
 
     // 更新偏好设置（支持单独更新某一项）
     // 【修改】增加了 pickupAggregation、advanceReminder 和 autoArchive 参数
@@ -153,7 +129,6 @@ class SettingsViewModel(
         pickupAggregation: Boolean? = null,
         hapticFeedbackEnabled: Boolean? = null,
         edgeBarEnabled: Boolean? = null,
-        networkSpeedCapsule: Boolean? = null,
         floatingWindow: Boolean? = null,
         advanceReminderEnabled: Boolean? = null,
         advanceReminderMinutes: Int? = null,
@@ -189,7 +164,6 @@ class SettingsViewModel(
         floatingVoiceLongPressEnabled: Boolean? = null,
         floatingTextQuickMemoAutoPinEnabled: Boolean? = null,
         voiceQuickMemoAutoPinEnabled: Boolean? = null,
-        appBackgroundCardAlphaPercent: Int? = null,
         widgetThemeMode: Int? = null,
         widgetBackgroundAlpha: Float? = null,
         developerOptionsUnlocked: Boolean? = null,
@@ -197,9 +171,7 @@ class SettingsViewModel(
         developerOptionsDisabledAtMillis: Long? = null,
         homeBottomItems: List<String>? = null,
         homeStartPageKey: String? = null,
-        weatherLocationStabilityRequiredHits: Int? = null,
         liveNotificationTemplateMode: String? = null,
-        courseFeatureEnabled: Boolean? = null
     ) {
         viewModelScope.launch {
             val updated = settingsTransformApi.applyPreferenceUpdate(
@@ -212,7 +184,6 @@ class SettingsViewModel(
                 pickupAggregation = pickupAggregation,
                 hapticFeedbackEnabled = hapticFeedbackEnabled,
                 edgeBarEnabled = edgeBarEnabled,
-                networkSpeedCapsule = networkSpeedCapsule,
                 floatingWindow = floatingWindow,
                 advanceReminderEnabled = advanceReminderEnabled,
                 advanceReminderMinutes = advanceReminderMinutes,
@@ -248,7 +219,6 @@ class SettingsViewModel(
                 floatingVoiceLongPressEnabled = floatingVoiceLongPressEnabled,
                 floatingTextQuickMemoAutoPinEnabled = floatingTextQuickMemoAutoPinEnabled,
                 voiceQuickMemoAutoPinEnabled = voiceQuickMemoAutoPinEnabled,
-                appBackgroundCardAlphaPercent = appBackgroundCardAlphaPercent,
                 widgetThemeMode = widgetThemeMode,
                 widgetBackgroundAlpha = widgetBackgroundAlpha,
                 developerOptionsUnlocked = developerOptionsUnlocked,
@@ -256,9 +226,7 @@ class SettingsViewModel(
                 developerOptionsDisabledAtMillis = developerOptionsDisabledAtMillis,
                 homeBottomItems = homeBottomItems,
                 homeStartPageKey = homeStartPageKey,
-                weatherLocationStabilityRequiredHits = weatherLocationStabilityRequiredHits,
                 liveNotificationTemplateMode = liveNotificationTemplateMode,
-                courseFeatureEnabled = courseFeatureEnabled
             )
             settingsOperationApi.updateSettings(updated)
         }
@@ -390,51 +358,6 @@ class SettingsViewModel(
         )
     }
 
-    fun updateWeatherSettings(
-        enabled: Boolean,
-        provider: String,
-        apiUrl: String,
-        apiKey: String,
-        refreshInterval: Int,
-        showInFloating: Boolean,
-        locationMode: String,
-        manualLocationId: String,
-        manualLocationName: String,
-        manualAdm1: String,
-        manualAdm2: String,
-        manualCountry: String,
-        manualLat: Double,
-        manualLon: Double,
-        warningEnabled: Boolean,
-        riskWarningEnabled: Boolean,
-        warningLookaheadHours: Int,
-        floatingWeatherForecastRange: Int
-    ) {
-        settingsOperationApi.updateSettings(
-            settings.value.copy(
-                weatherEnabled = enabled,
-                weatherProvider = provider,
-                weatherApiUrl = apiUrl,
-                weatherApiKey = apiKey,
-                weatherCity = manualLocationName,
-                weatherLocationMode = locationMode,
-                weatherManualLocationId = manualLocationId,
-                weatherManualLocationName = manualLocationName,
-                weatherManualAdm1 = manualAdm1,
-                weatherManualAdm2 = manualAdm2,
-                weatherManualCountry = manualCountry,
-                weatherManualLat = manualLat,
-                weatherManualLon = manualLon,
-                weatherWarningEnabled = warningEnabled,
-                weatherRiskWarningEnabled = riskWarningEnabled,
-                weatherWarningLookaheadHours = warningLookaheadHours,
-                weatherRefreshInterval = refreshInterval,
-                showWeatherInFloating = showInFloating,
-                floatingWeatherForecastRange = floatingWeatherForecastRange
-            )
-        )
-    }
-
     // 更新截图延迟
     fun updateScreenshotDelay(delay: Long) {
         val normalizedDelay = MySettings.normalizeScreenshotDelayMs(delay)
@@ -459,7 +382,6 @@ class SettingsViewModel(
             settingsOperationApi.updateSettings(
                 settings.value.copy(
                     themeColorScheme = scheme,
-                    appBackgroundImageColorEnabled = false
                 )
             )
         }
@@ -472,112 +394,7 @@ class SettingsViewModel(
                 settings.value.copy(
                     themeColorScheme = ThemeColorScheme.CUSTOM.name,
                     customThemeColorHex = normalized,
-                    appBackgroundImageColorEnabled = false
                 )
-            )
-        }
-    }
-
-    fun importAppBackground(uri: Uri, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            val current = settings.value
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    backgroundImageStore.importBackground(uri, current.appBackgroundImagePath)
-                }
-            }.onSuccess { result ->
-                val resetImageColor = current.appBackgroundImageColorEnabled
-                settingsOperationApi.updateSettings(
-                    current.copy(
-                        appBackgroundEnabled = true,
-                        appBackgroundImagePath = result.path,
-                        appBackgroundSeedColorHex = "",
-                        appBackgroundImageColorEnabled = false,
-                        appBackgroundScrimAlphaPercent = 0,
-                        appBackgroundAverageLuminance = result.averageLuminance,
-                        themeColorScheme = if (resetImageColor) ThemeColorScheme.DEFAULT.name else current.themeColorScheme
-                    )
-                )
-                onResult(true, "主界面壁纸已设置")
-            }.onFailure { error ->
-                onResult(false, error.message ?: "背景图片导入失败")
-            }
-        }
-    }
-
-    fun clearAppBackground() {
-        viewModelScope.launch {
-            val current = settings.value
-            withContext(Dispatchers.IO) {
-                backgroundImageStore.clearBackground(current.appBackgroundImagePath)
-            }
-            settingsOperationApi.updateSettings(
-                current.copy(
-                    appBackgroundEnabled = false,
-                        appBackgroundImagePath = "",
-                        appBackgroundSeedColorHex = "",
-                        appBackgroundImageColorEnabled = false,
-                        appBackgroundWallpaperBlurEnabled = false,
-                        appBackgroundScrimAlphaPercent = 0,
-                        appBackgroundAverageLuminance = -1f,
-                        themeColorScheme = if (current.appBackgroundImageColorEnabled) ThemeColorScheme.DEFAULT.name else current.themeColorScheme
-                    )
-                )
-        }
-    }
-
-    fun updateAppBackgroundImageColorEnabled(enabled: Boolean, onResult: (Boolean, String) -> Unit = { _, _ -> }) {
-        viewModelScope.launch {
-            val current = settings.value
-            if (!enabled) {
-                settingsOperationApi.updateSettings(
-                    current.copy(
-                        appBackgroundImageColorEnabled = false,
-                        themeColorScheme = ThemeColorScheme.DEFAULT.name
-                    )
-                )
-                onResult(true, "已切换为系统取色")
-                return@launch
-            }
-
-            if (current.appBackgroundImagePath.isBlank()) {
-                onResult(false, "请先选择背景图片")
-                return@launch
-            }
-
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    current.appBackgroundSeedColorHex.takeIf { normalizeThemeHexColor(it) != null }
-                        ?: backgroundImageStore.extractSeedColorHex(current.appBackgroundImagePath)
-                }
-            }.onSuccess { seedHex ->
-                val normalized = normalizeThemeHexColor(seedHex) ?: "#6750A4"
-                settingsOperationApi.updateSettings(
-                    current.copy(
-                        appBackgroundSeedColorHex = normalized,
-                        appBackgroundImageColorEnabled = true,
-                        themeColorScheme = ThemeColorScheme.CUSTOM.name,
-                        customThemeColorHex = normalized
-                    )
-                )
-                onResult(true, "已切换为图片取色")
-            }.onFailure { error ->
-                onResult(false, error.message ?: "图片取色失败")
-            }
-        }
-    }
-
-    fun updateAppBackgroundMiuiBlurTestEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            settingsOperationApi.updateSettings(settings.value.copy(appBackgroundMiuiBlurTestEnabled = enabled))
-        }
-    }
-
-    fun updateAppBackgroundWallpaperBlurEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            val current = settings.value
-            settingsOperationApi.updateSettings(
-                current.copy(appBackgroundWallpaperBlurEnabled = enabled && current.appBackgroundImagePath.isNotBlank())
             )
         }
     }
@@ -639,14 +456,6 @@ class SettingsViewModel(
 
     // --- 导出/导入功能 ---
 
-    suspend fun exportCoursesData(): String {
-        return backupCenter.exportCoursesData()
-    }
-
-    suspend fun importCoursesData(jsonString: String): Result<Unit> {
-        return backupCenter.importCoursesData(jsonString)
-    }
-
     suspend fun exportEventsData(): String {
         return backupCenter.exportEventsData()
     }
@@ -679,56 +488,6 @@ class SettingsViewModel(
     fun getTotalEventsCount(): Int = scheduleCenter.getTotalEventsCount()
     fun getAttachmentCount(): Int = backupCenter.getAttachmentCount()
     fun estimateAttachmentBytes(): Long = backupCenter.estimateAttachmentBytes()
-    fun getCoursesCount(): Int = CourseEventMapper.extractParentCourses(
-        scheduleCenter.events.value,
-        settingsQueryApi.settings.value
-    ).size
-
-    private suspend fun remapCourseEventsForSettings(updatedSettings: MySettings) {
-        val events = scheduleCenter.events.value
-        val courseParents = events.filter { CourseEventMapper.isCourseParent(it) }
-        if (courseParents.isEmpty()) return
-
-        courseParents.forEach { parent ->
-            val parentId = parent.id ?: return@forEach
-            val course = CourseEventMapper.toCourse(parent, updatedSettings) ?: return@forEach
-            val detachedWeeks = events
-                .filter { it.parentId == parentId && CourseEventMapper.isCourseEvent(it) }
-                .mapNotNull { child -> CourseEventMapper.childOriginalWeek(child, updatedSettings) }
-                .distinct()
-            val detachedOccurrenceTs = detachedWeeks.mapNotNull { week ->
-                CourseEventMapper.occurrenceTsForWeek(course, updatedSettings, week)
-            }
-            val rebasedParent = CourseEventMapper.toParentEvent(
-                course = course,
-                settings = updatedSettings,
-                existingParent = parent.copy(exdates = emptyList()),
-                additionalExcludedOccurrenceTs = detachedOccurrenceTs
-            )
-            if (rebasedParent.startTS != parent.startTS ||
-                rebasedParent.endTS != parent.endTS ||
-                rebasedParent.exdates != parent.exdates
-            ) {
-                scheduleCenter.updateEvent(rebasedParent)
-            }
-        }
-
-        events.filter { CourseEventMapper.isCourseException(it) }.forEach { child ->
-            val meta = CourseEventMapper.parseMeta(child.description) ?: return@forEach
-            val actualDate = Instant.ofEpochSecond(child.startTS)
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-            val (startTs, endTs) = CourseEventMapper.mapNodesToEpochRange(
-                settings = updatedSettings,
-                date = actualDate,
-                startNode = meta.startNode,
-                endNode = meta.endNode
-            )
-            if (startTs != child.startTS || endTs != child.endTS) {
-                scheduleCenter.updateEvent(child.copy(startTS = startTs, endTS = endTs))
-            }
-        }
-    }
 
     fun hasDuplicateAdvanceReminder(minutes: Int): Boolean {
         return scheduleInsightsQueryApi.hasDuplicateAdvanceReminder(
@@ -737,44 +496,6 @@ class SettingsViewModel(
         )
     }
 
-    /**
-     * 导入外部课表文件（WakeUp 格式）
-     * @param content 文件内容
-     * @param mode 导入模式（追加/覆盖）
-     * @param importSettings 是否导入设置（开学日期、总周数）
-     * @param callback 导入完成回调，返回成功导入的课程数量
-     */
-    fun importWakeUpFile(
-        content: String,
-        mode: ImportMode,
-        importSettings: Boolean,
-        callback: suspend (Result<Int>) -> Unit
-    ) {
-        viewModelScope.launch {
-            val result = backupCenter.importWakeUpFile(content, mode, importSettings)
-            callback(result)
-        }
-    }
-
-    suspend fun parseExternalCourseImport(content: String): Result<ParsedCourseImport> {
-        return backupCenter.parseExternalCourseImport(content)
-    }
-
-    suspend fun fetchWakeUpShareImport(shareText: String): Result<ParsedCourseImport> {
-        return backupCenter.fetchWakeUpShareImport(shareText)
-    }
-
-    fun importParsedCourseImport(
-        parsed: ParsedCourseImport,
-        mode: ImportMode,
-        importSettings: Boolean,
-        callback: suspend (Result<Int>) -> Unit
-    ) {
-        viewModelScope.launch {
-            val result = backupCenter.importParsedCourseImport(parsed, mode, importSettings)
-            callback(result)
-        }
-    }
 
     // ==================== 日历同步相关 ====================
 

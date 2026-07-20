@@ -5,7 +5,6 @@ import android.net.Uri
 import com.antgskds.calendarassistant.calendar.data.EventsDatabase
 import com.antgskds.calendarassistant.core.ai.AiPrompts
 import com.antgskds.calendarassistant.core.attachment.EventAttachmentManager
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
 import com.antgskds.calendarassistant.core.migration.LegacyDataMigrationCoordinator
 import com.antgskds.calendarassistant.core.operation.SettingsOperationApi
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
@@ -16,7 +15,6 @@ import com.antgskds.calendarassistant.data.model.AppBackupManifest
 import com.antgskds.calendarassistant.data.model.AppBackupOptions
 import com.antgskds.calendarassistant.data.model.AppBackupQuickMemoDto
 import com.antgskds.calendarassistant.data.model.AppBackupQuickMemoSuggestionDto
-import com.antgskds.calendarassistant.data.model.Course
 import com.antgskds.calendarassistant.data.model.ImportResult
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoEntity
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoSuggestionEntity
@@ -58,21 +56,6 @@ class BackupCenter(
     }
     private val httpClient by lazy { HttpClient(Android) }
 
-    suspend fun exportCoursesData(): String {
-        val courses = CourseEventMapper.extractParentCourses(scheduleCenter.events.value, settingsQueryApi.settings.value)
-        return json.encodeToString(courses)
-    }
-
-    suspend fun importCoursesData(jsonString: String): Result<Unit> = runCatching {
-        val courses = json.decodeFromString<List<Course>>(jsonString)
-        val settings = settingsQueryApi.settings.value
-        val existing = scheduleCenter.events.value
-        courses.forEach { course ->
-            val parent = CourseEventMapper.findParentByCourseId(existing, course.id)
-            val event = CourseEventMapper.toParentEvent(course, settings, parent)
-            if (parent == null) scheduleCenter.addEvent(event) else scheduleCenter.updateEvent(event)
-        }
-    }
 
     suspend fun exportEventsData(): String = legacyDataMigrationCoordinator.exportEventsData()
 
@@ -92,13 +75,11 @@ class BackupCenter(
         val exportItems = if (normalized.includeAttachments) buildAttachmentExportItems() else emptyList()
         val quickMemoAudioExportItems = if (normalized.includeQuickMemos) buildQuickMemoAudioExportItems() else emptyList()
         val quickMemoImageExportItems = if (normalized.includeQuickMemos) buildQuickMemoImageExportItems() else emptyList()
-        val backgroundExportItem = if (normalized.includeSettings) buildAppBackgroundExportItem() else null
         val backupData = buildBackupData(
             options = normalized,
             attachmentDtos = exportItems.map { it.dto },
             quickMemoAudioFileNames = quickMemoAudioExportItems.associate { it.backupKey to it.fileName },
             quickMemoImageFileNames = quickMemoImageExportItems.associate { it.backupKey to it.fileName },
-            appBackgroundImageFileName = backgroundExportItem?.fileName
         )
         appContext.contentResolver.openOutputStream(uri)?.use { output ->
             ZipOutputStream(output.buffered()).use { zip ->
@@ -121,13 +102,6 @@ class BackupCenter(
                 quickMemoImageExportItems.forEach { item ->
                     if (item.file.exists()) {
                         zip.putNextEntry(ZipEntry("quick_memos/images/${item.fileName}"))
-                        item.file.inputStream().use { input -> input.copyTo(zip) }
-                        zip.closeEntry()
-                    }
-                }
-                backgroundExportItem?.let { item ->
-                    if (item.file.exists()) {
-                        zip.putNextEntry(ZipEntry("settings/background/${item.fileName}"))
                         item.file.inputStream().use { input -> input.copyTo(zip) }
                         zip.closeEntry()
                     }
@@ -169,10 +143,6 @@ class BackupCenter(
                                     val imageDir = File(tempDir, QUICK_MEMO_IMAGE_IMPORT_DIR).apply { mkdirs() }
                                     val file = File(imageDir, File(safeName).name)
                                     file.outputStream().use { output -> zip.copyTo(output) }
-                                } else if (safeName.startsWith("settings/background/")) {
-                                    val backgroundDir = File(tempDir, APP_BACKGROUND_IMPORT_DIR).apply { mkdirs() }
-                                    val file = File(backgroundDir, File(safeName).name)
-                                    file.outputStream().use { output -> zip.copyTo(output) }
                                 }
                             }
                         }
@@ -197,12 +167,6 @@ class BackupCenter(
         return result
     }
 
-    suspend fun parseExternalCourseImport(content: String): Result<ParsedCourseImport> = runCatching {
-        val parsed = CourseImportParser.parseExternalContent(content)
-        if (parsed.courses.isEmpty()) error("未解析到有效课程")
-        parsed
-    }
-
     private fun normalizeBackupOptions(options: AppBackupOptions): AppBackupOptions {
         return if (options.includeAttachments && !options.includeEvents) {
             options.copy(includeEvents = true)
@@ -216,7 +180,6 @@ class BackupCenter(
         attachmentDtos: List<AppBackupAttachmentDto> = if (options.includeAttachments) buildAttachmentDtos() else emptyList(),
         quickMemoAudioFileNames: Map<String, String> = emptyMap(),
         quickMemoImageFileNames: Map<String, String> = emptyMap(),
-        appBackgroundImageFileName: String? = null
     ): AppBackupData {
         val eventsJson = if (options.includeEvents) legacyDataMigrationCoordinator.exportEventsData() else null
         val quickMemoData = if (options.includeQuickMemos) {
@@ -228,7 +191,6 @@ class BackupCenter(
             eventsJson = eventsJson,
             settings = if (options.includeSettings) settingsQueryApi.settings.value else null,
             promptsJson = if (options.includePrompts) AiPrompts.exportToJson(appContext) else null,
-            appBackgroundImageFileName = appBackgroundImageFileName,
             attachments = attachmentDtos,
             quickMemos = quickMemoData.memos,
             quickMemoSuggestions = quickMemoData.suggestions
@@ -239,15 +201,6 @@ class BackupCenter(
         return buildAttachmentExportItems().map { it.dto }
     }
 
-    private fun buildAppBackgroundExportItem(): AppBackgroundExportItem? {
-        val path = settingsQueryApi.settings.value.appBackgroundImagePath.takeIf { it.isNotBlank() } ?: return null
-        val file = File(path)
-        if (!file.exists() || !file.isFile) return null
-        return AppBackgroundExportItem(
-            fileName = "app_background_${file.name}",
-            file = file
-        )
-    }
 
     private fun allStoredEvents() = (db.eventsDao().getAllEventsOrTasks() + db.eventsDao().getArchivedEvents())
         .distinctBy { it.id }
@@ -285,9 +238,6 @@ class BackupCenter(
             importEventsData(data.eventsJson).getOrThrow()
         } else {
             null
-        }
-        if (options.includeSettings && data.settings != null) {
-            settingsOperationApi.updateSettings(restoreAppBackgroundSetting(data.settings, data.appBackgroundImageFileName, attachmentsDir))
         }
         val promptsImported = if (options.includePrompts && !data.promptsJson.isNullOrBlank()) {
             AiPrompts.importFromJson(appContext, data.promptsJson)
@@ -486,28 +436,6 @@ class BackupCenter(
         return targetFile.absolutePath
     }
 
-    private fun restoreAppBackgroundSetting(
-        settings: com.antgskds.calendarassistant.data.model.MySettings,
-        fileName: String?,
-        tempDir: File?
-    ): com.antgskds.calendarassistant.data.model.MySettings {
-        if (fileName.isNullOrBlank() || tempDir == null) {
-            return settings.copy(appBackgroundImagePath = "", appBackgroundEnabled = false)
-        }
-        val sourceFile = File(File(tempDir, APP_BACKGROUND_IMPORT_DIR), File(fileName).name)
-        if (!sourceFile.exists() || !sourceFile.isFile) {
-            return settings.copy(appBackgroundImagePath = "", appBackgroundEnabled = false)
-        }
-        val targetDir = File(appContext.filesDir, APP_BACKGROUND_STORE_DIR).apply { mkdirs() }
-        val targetFile = uniqueFile(targetDir, sourceFile.name)
-        sourceFile.inputStream().use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        }
-        return settings.copy(
-            appBackgroundEnabled = true,
-            appBackgroundImagePath = targetFile.absolutePath
-        )
-    }
 
     private fun uniqueFile(directory: File, fileName: String): File {
         val cleanName = File(fileName).name.ifBlank { "quick_memo_file" }
@@ -558,10 +486,6 @@ class BackupCenter(
         val file: File
     )
 
-    private data class AppBackgroundExportItem(
-        val fileName: String,
-        val file: File
-    )
 
     private data class QuickMemoBackupData(
         val memos: List<AppBackupQuickMemoDto> = emptyList(),
@@ -573,83 +497,6 @@ class BackupCenter(
         const val QUICK_MEMO_IMAGE_IMPORT_DIR = "quick_memo_image"
         const val QUICK_MEMO_AUDIO_STORE_DIR = "quick_memos/audio"
         const val QUICK_MEMO_IMAGE_STORE_DIR = "quick_memos/images"
-        const val APP_BACKGROUND_IMPORT_DIR = "app_background"
-        const val APP_BACKGROUND_STORE_DIR = "theme/background"
     }
 
-    suspend fun fetchWakeUpShareImport(shareText: String): Result<ParsedCourseImport> = runCatching {
-        val key = CourseImportParser.extractWakeUpKey(shareText) ?: error("剪贴板中未识别到 WakeUp 分享口令")
-        val response = httpClient.get {
-            url("https://i.wakeup.fun/share_schedule/get")
-            parameter("key", key)
-            header("User-Agent", "WillDo/2.0")
-        }
-        if (!response.status.isSuccess()) {
-            error("WakeUp 请求失败：HTTP ${response.status.value}")
-        }
-
-        val body = response.bodyAsText()
-        val root = json.parseToJsonElement(body).jsonObject
-        val status = root["status"]?.jsonPrimitive?.content?.toIntOrNull()
-        if (status != 1) {
-            error(root["message"]?.jsonPrimitive?.content ?: "WakeUp 返回错误状态")
-        }
-        val data = root["data"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
-            ?: error("WakeUp 返回数据为空")
-        CourseImportParser.parseWakeUpShareData(data)
-    }
-
-    suspend fun importParsedCourseImport(
-        parsed: ParsedCourseImport,
-        mode: ImportMode,
-        importSettings: Boolean
-    ): Result<Int> = runCatching {
-        importParsed(parsed, mode, importSettings)
-    }
-
-    suspend fun importWakeUpFile(content: String, mode: ImportMode, importSettings: Boolean): Result<Int> = runCatching {
-        val parsed = CourseImportParser.parseExternalContent(content)
-        importParsed(parsed, mode, importSettings)
-    }
-
-    private suspend fun importParsed(parsed: ParsedCourseImport, mode: ImportMode, importSettings: Boolean): Int {
-        if (parsed.courses.isEmpty()) error("未解析到有效课程")
-
-        val effectiveSettings = if (importSettings) {
-            val current = settingsQueryApi.settings.value
-            val updated = current.copy(
-                semesterStartDate = parsed.semesterStartDate ?: current.semesterStartDate,
-                totalWeeks = parsed.totalWeeks ?: current.totalWeeks,
-                timeTableJson = parsed.timeTableJson ?: current.timeTableJson,
-                timeTableConfigJson = parsed.timeTableConfigJson ?: current.timeTableConfigJson
-            )
-            if (updated != current) settingsOperationApi.updateSettings(updated)
-            updated
-        } else {
-            settingsQueryApi.settings.value
-        }
-
-        if (mode == ImportMode.OVERWRITE) {
-            CourseEventMapper.extractParentCourses(scheduleCenter.events.value, effectiveSettings)
-                .forEach { course ->
-                    CourseEventMapper.findParentByCourseId(scheduleCenter.events.value, course.id)
-                        ?.id
-                        ?.let { scheduleCenter.deleteEvent(it) }
-                }
-        }
-
-        var imported = 0
-        parsed.courses.forEach { course ->
-            val existingParent = if (mode == ImportMode.OVERWRITE) {
-                null
-            } else {
-                CourseEventMapper.findParentByCourseId(scheduleCenter.events.value, course.id)
-            }
-            if (existingParent != null && mode == ImportMode.APPEND) return@forEach
-            val event = CourseEventMapper.toParentEvent(course, effectiveSettings, existingParent)
-            if (existingParent == null) scheduleCenter.addEvent(event) else scheduleCenter.updateEvent(event)
-            imported++
-        }
-        return imported
-    }
 }

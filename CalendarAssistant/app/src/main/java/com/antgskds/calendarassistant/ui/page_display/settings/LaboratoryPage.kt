@@ -68,29 +68,6 @@ fun LaboratoryPage(
     val settings by settingsViewModel?.settings?.collectAsState() ?: remember { mutableStateOf(null) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var asrModelStatus by remember { mutableStateOf(QuickMemoAsrModelStore.status(context)) }
-
-    fun refreshAsrModelStatus() {
-        asrModelStatus = QuickMemoAsrModelStore.status(context)
-    }
-
-    val asrModelImportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                QuickMemoAsrModelStore.importModelFile(context, uri)
-            }
-            refreshAsrModelStatus()
-            val message = result.fold(
-                onSuccess = { fileName -> "已导入 $fileName" },
-                onFailure = { error -> error.message ?: "模型导入失败" }
-            )
-            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-        }
-    }
 
     LaunchedEffect(settings?.developerOptionsUnlocked, settings?.developerOptionsEnabled, settings?.developerOptionsDisabledAtMillis) {
         val current = settings ?: return@LaunchedEffect
@@ -124,33 +101,6 @@ fun LaboratoryPage(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (settings != null) {
-            Text(
-                text = "随口记",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            LaboratoryQuickMemoCard(
-                settings = settings!!,
-                asrModelStatus = asrModelStatus,
-                onVoiceInputEnabledChange = { enabled ->
-                    settingsViewModel?.updatePreference(voiceInputEnabled = enabled)
-                },
-                onFloatingLongPressChange = { enabled ->
-                    settingsViewModel?.updatePreference(floatingVoiceLongPressEnabled = enabled)
-                },
-                onRecordingDisplayModeChange = { mode ->
-                    settingsViewModel?.updatePreference(quickMemoRecordingDisplayMode = mode)
-                },
-                onTextAutoPinChange = { enabled ->
-                    settingsViewModel?.updatePreference(floatingTextQuickMemoAutoPinEnabled = enabled)
-                },
-                onVoiceAutoPinChange = { enabled ->
-                    settingsViewModel?.updatePreference(voiceQuickMemoAutoPinEnabled = enabled)
-                },
-                onImportAsrModel = { asrModelImportLauncher.launch(arrayOf("*/*")) }
-            )
-
             Text(
                 text = "实验功能",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -230,80 +180,107 @@ fun LaboratoryPage(
     }
 }
 
+/**
+ * 随口记设置卡片（已从实验室移出，现由偏好设置页调用）。
+ * 内含语音转写模型状态与导入逻辑，可独立使用。
+ */
 @Composable
-private fun LaboratoryQuickMemoCard(
+internal fun LaboratoryQuickMemoCard(
     settings: MySettings,
-    asrModelStatus: QuickMemoAsrModelStatus,
-    onVoiceInputEnabledChange: (Boolean) -> Unit,
-    onFloatingLongPressChange: (Boolean) -> Unit,
-    onRecordingDisplayModeChange: (Int) -> Unit,
-    onTextAutoPinChange: (Boolean) -> Unit,
-    onVoiceAutoPinChange: (Boolean) -> Unit,
-    onImportAsrModel: () -> Unit
+    settingsViewModel: SettingsViewModel
 ) {
-    AppCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-            LaboratorySwitchRow(
-                title = "随口记",
-                subtitle = "总开关。关闭后长按音量+和悬浮窗入口都不能启动随口记录音",
-                checked = settings.voiceInputEnabled,
-                onCheckedChange = onVoiceInputEnabledChange
-            )
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var asrModelStatus by remember { mutableStateOf(QuickMemoAsrModelStore.status(context)) }
 
-            AnimatedVisibility(
-                visible = settings.voiceInputEnabled,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    LaboratoryDivider()
-                    LaboratorySwitchRow(
-                        title = "悬浮窗长按随口记",
-                        subtitle = "控制悬浮窗已呼出后，再次长按音量+是否进入随口记录音",
-                        checked = settings.floatingVoiceLongPressEnabled,
-                        onCheckedChange = onFloatingLongPressChange
-                    )
-                    LaboratoryDivider()
-                    LaboratoryTwoOptionRow(
-                        title = "录音展示",
-                        subtitle = if (settings.quickMemoRecordingDisplayMode == QuickMemoRecordingDisplayMode.FLOATING_WINDOW) {
-                            "所有入口录音时使用悬浮窗"
-                        } else {
-                            "所有入口录音时使用实况通知"
-                        },
-                        selectedValue = QuickMemoRecordingDisplayMode.normalize(settings.quickMemoRecordingDisplayMode),
-                        firstValue = QuickMemoRecordingDisplayMode.LIVE_CAPSULE,
-                        firstLabel = "实况通知",
-                        secondValue = QuickMemoRecordingDisplayMode.FLOATING_WINDOW,
-                        secondLabel = "悬浮窗",
-                        onValueSelected = onRecordingDisplayModeChange
-                    )
-                    LaboratoryDivider()
-                    LaboratorySwitchRow(
-                        title = "悬浮窗文本随口记同步挂起",
-                        subtitle = "悬浮窗随口记模式保存文本后，同步挂到实况通知；需开启实况通知",
-                        checked = settings.floatingTextQuickMemoAutoPinEnabled,
-                        onCheckedChange = onTextAutoPinChange
-                    )
-                    LaboratoryDivider()
-                    LaboratorySwitchRow(
-                        title = "语音随口记同步挂起",
-                        subtitle = "语音随口记转写完成后，自动挂到实况通知；需开启实况通知",
-                        checked = settings.voiceQuickMemoAutoPinEnabled,
-                        onCheckedChange = onVoiceAutoPinChange
-                    )
-                    LaboratoryDivider()
-                    LaboratoryActionRow(
-                        title = "语音转写模型",
-                        subtitle = formatQuickMemoAsrModelStatus(asrModelStatus),
-                        buttonText = if (asrModelStatus.ready) "更换模型" else "导入模型",
-                        onClick = onImportAsrModel
-                    )
-                }
+    fun refreshAsrModelStatus() {
+        asrModelStatus = QuickMemoAsrModelStore.status(context)
+    }
+
+    val asrModelImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                QuickMemoAsrModelStore.importModelFile(context, uri)
+            }
+            refreshAsrModelStatus()
+            val message = result.fold(
+                onSuccess = { fileName -> "已导入 $fileName" },
+                onFailure = { error -> error.message ?: "模型导入失败" }
+            )
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        LaboratorySwitchRow(
+            title = "随口记",
+            subtitle = "总开关。关闭后长按音量+和悬浮窗入口都不能启动随口记录音",
+            checked = settings.voiceInputEnabled,
+            onCheckedChange = { enabled ->
+                settingsViewModel.updatePreference(voiceInputEnabled = enabled)
+            }
+        )
+
+        AnimatedVisibility(
+            visible = settings.voiceInputEnabled,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                LaboratoryDivider()
+                LaboratorySwitchRow(
+                    title = "悬浮窗长按随口记",
+                    subtitle = "控制悬浮窗已呼出后，再次长按音量+是否进入随口记录音",
+                    checked = settings.floatingVoiceLongPressEnabled,
+                    onCheckedChange = { enabled ->
+                        settingsViewModel.updatePreference(floatingVoiceLongPressEnabled = enabled)
+                    }
+                )
+                LaboratoryDivider()
+                LaboratoryTwoOptionRow(
+                    title = "录音展示",
+                    subtitle = if (settings.quickMemoRecordingDisplayMode == QuickMemoRecordingDisplayMode.FLOATING_WINDOW) {
+                        "所有入口录音时使用悬浮窗"
+                    } else {
+                        "所有入口录音时使用实况通知"
+                    },
+                    selectedValue = QuickMemoRecordingDisplayMode.normalize(settings.quickMemoRecordingDisplayMode),
+                    firstValue = QuickMemoRecordingDisplayMode.LIVE_CAPSULE,
+                    firstLabel = "实况通知",
+                    secondValue = QuickMemoRecordingDisplayMode.FLOATING_WINDOW,
+                    secondLabel = "悬浮窗",
+                    onValueSelected = { mode ->
+                        settingsViewModel.updatePreference(quickMemoRecordingDisplayMode = mode)
+                    }
+                )
+                LaboratoryDivider()
+                LaboratorySwitchRow(
+                    title = "悬浮窗文本随口记同步挂起",
+                    subtitle = "悬浮窗随口记模式保存文本后，同步挂到实况通知；需开启实况通知",
+                    checked = settings.floatingTextQuickMemoAutoPinEnabled,
+                    onCheckedChange = { enabled ->
+                        settingsViewModel.updatePreference(floatingTextQuickMemoAutoPinEnabled = enabled)
+                    }
+                )
+                LaboratoryDivider()
+                LaboratorySwitchRow(
+                    title = "语音随口记同步挂起",
+                    subtitle = "语音随口记转写完成后，自动挂到实况通知；需开启实况通知",
+                    checked = settings.voiceQuickMemoAutoPinEnabled,
+                    onCheckedChange = { enabled ->
+                        settingsViewModel.updatePreference(voiceQuickMemoAutoPinEnabled = enabled)
+                    }
+                )
+                LaboratoryDivider()
+                LaboratoryActionRow(
+                    title = "语音转写模型",
+                    subtitle = formatQuickMemoAsrModelStatus(asrModelStatus),
+                    buttonText = if (asrModelStatus.ready) "更换模型" else "导入模型",
+                    onClick = { asrModelImportLauncher.launch(arrayOf("*/*")) }
+                )
             }
         }
     }
@@ -340,7 +317,7 @@ private fun LaboratorySwitchCard(
 }
 
 @Composable
-private fun LaboratorySwitchRow(
+internal fun LaboratorySwitchRow(
     title: String,
     subtitle: String,
     checked: Boolean,

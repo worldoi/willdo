@@ -13,7 +13,6 @@ interface SettingsTransformApi {
         pickupAggregation: Boolean? = null,
         hapticFeedbackEnabled: Boolean? = null,
         edgeBarEnabled: Boolean? = null,
-        networkSpeedCapsule: Boolean? = null,
         floatingWindow: Boolean? = null,
         advanceReminderEnabled: Boolean? = null,
         advanceReminderMinutes: Int? = null,
@@ -49,7 +48,6 @@ interface SettingsTransformApi {
         floatingVoiceLongPressEnabled: Boolean? = null,
         floatingTextQuickMemoAutoPinEnabled: Boolean? = null,
         voiceQuickMemoAutoPinEnabled: Boolean? = null,
-        appBackgroundCardAlphaPercent: Int? = null,
         widgetThemeMode: Int? = null,
         widgetBackgroundAlpha: Float? = null,
         developerOptionsUnlocked: Boolean? = null,
@@ -57,8 +55,6 @@ interface SettingsTransformApi {
         developerOptionsDisabledAtMillis: Long? = null,
         homeBottomItems: List<String>? = null,
         homeStartPageKey: String? = null,
-        weatherLocationStabilityRequiredHits: Int? = null,
         liveNotificationTemplateMode: String? = null,
-        courseFeatureEnabled: Boolean? = null
     ): MySettings
 }

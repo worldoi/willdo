@@ -449,7 +449,7 @@ class EdgeBarService : Service() {
     private fun startEdgeVoiceCapture(settings: MySettings): Boolean {
         if (edgeVoiceStarting || edgeVoiceRecording) return true
         if (!settings.voiceInputEnabled) {
-            Toast.makeText(applicationContext, "请先在实验室中开启随口记", Toast.LENGTH_SHORT).show()
+            Toast.makeText(applicationContext, "请在设置中开启随口记", Toast.LENGTH_SHORT).show()
             return false
         }
         if (!permissionCenter.canDrawOverlays(this)) {

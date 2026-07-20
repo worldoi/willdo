@@ -45,18 +45,13 @@ import kotlin.math.roundToInt
 
 // 定义设置导航的目标
 enum class SettingsDestination {
-    // 课表相关（新细分）
-    CourseManage,      // 课表管理
-    TimeTableManage,   // 作息表管理
-    SemesterConfig,    // 学期配置
-
-    // 课表相关（旧版，保持兼容）
-    Schedule,          // 综合课表设置（已废弃，建议使用上述细分选项）
+    // 课表设置
+    Schedule,          // 日程（侧边栏根目录独立入口，承载日历同步/归档设置）
 
     // 其他设置
     AI,                // 模型配置
-    Weather,           // 天气设置
     Preference,        // 偏好设置
+    QuickMemo,         // 随口记（已从偏好设置迁出，侧边栏根目录）
     ScheduleColors,    // 日程颜色（从偏好设置入口进入）
     Archives,          // 日程归档
     Backup,            // 数据备份
@@ -195,11 +190,13 @@ fun SettingsSidebar(
                 onAppUpdate = { onNavigate(SettingsDestination.AppUpdate) }
             )
 
-            // 第二块：课表管理卡片
-            SidebarScheduleCard(glassMode, onNavigate)
-
-            // 第三块：其他设置卡片
+            // 第二块：其他设置卡片（模型配置 / 偏好设置）
             SidebarOtherSettingsCard(glassMode, onNavigate)
+
+            // 第三块：日程与随口记卡片（已从偏好设置迁出）
+            SidebarScheduleQuickMemoCard(glassMode, onNavigate)
+
+
 
             // 第四块：实验室卡片
             SidebarLaboratoryCard(glassMode, onNavigate)
@@ -326,60 +323,48 @@ private fun SidebarActionItem(
     }
 }
 
-// 第二块：课表管理卡片
-@Composable
-private fun SidebarScheduleCard(glassMode: Boolean, onNavigate: (SettingsDestination) -> Unit) {
-    SidebarGlassCard(glassMode = glassMode) {
-        Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            // 课表管理
-            SidebarActionItem(
-                icon = Icons.Default.TableChart,
-                title = "课表管理",
-                subtitle = "管理课程信息",
-                onClick = { onNavigate(SettingsDestination.CourseManage) }
-            )
-            // 作息表管理
-            SidebarActionItem(
-                icon = Icons.Default.Schedule,
-                title = "作息表管理",
-                subtitle = "设置上课时间",
-                onClick = { onNavigate(SettingsDestination.TimeTableManage) }
-            )
-            // 学期配置
-            SidebarActionItem(
-                icon = Icons.Default.DateRange,
-                title = "学期配置",
-                subtitle = "设置学期时间",
-                onClick = { onNavigate(SettingsDestination.SemesterConfig) }
-            )
-        }
-    }
-}
 
-// 第三块：其他设置卡片
+// 第二块：其他设置卡片（模型配置 / 偏好设置）
 @Composable
 private fun SidebarOtherSettingsCard(glassMode: Boolean, onNavigate: (SettingsDestination) -> Unit) {
     SidebarGlassCard(glassMode = glassMode) {
         Column(modifier = Modifier.padding(vertical = 8.dp)) {
-            // 模型配置
+            // 模型配置（AI）
             SidebarActionItem(
                 icon = Icons.Default.Android,
                 title = "模型配置",
                 subtitle = "API Key 与模型",
                 onClick = { onNavigate(SettingsDestination.AI) }
             )
-            SidebarActionItem(
-                icon = Icons.Default.WbSunny,
-                title = "天气",
-                subtitle = "天气 API 与展示设置",
-                onClick = { onNavigate(SettingsDestination.Weather) }
-            )
             // 偏好设置
             SidebarActionItem(
                 icon = Icons.Default.Tune,
                 title = "偏好设置",
-                subtitle = "通知、显示选项",
+                subtitle = "通知、显示、悬浮球",
                 onClick = { onNavigate(SettingsDestination.Preference) }
+            )
+        }
+    }
+}
+
+// 第三块：日程与随口记卡片（已从偏好设置迁出，侧边栏根目录）
+@Composable
+private fun SidebarScheduleQuickMemoCard(glassMode: Boolean, onNavigate: (SettingsDestination) -> Unit) {
+    SidebarGlassCard(glassMode = glassMode) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            // 随口记
+            SidebarActionItem(
+                icon = Icons.Default.Mic,
+                title = "随口记",
+                subtitle = "语音速记与转写",
+                onClick = { onNavigate(SettingsDestination.QuickMemo) }
+            )
+            // 日程
+            SidebarActionItem(
+                icon = Icons.Default.DateRange,
+                title = "日程",
+                subtitle = "日历同步、归档与颜色",
+                onClick = { onNavigate(SettingsDestination.Schedule) }
             )
         }
     }

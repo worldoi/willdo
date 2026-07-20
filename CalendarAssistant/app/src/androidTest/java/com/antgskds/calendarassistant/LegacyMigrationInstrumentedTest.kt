@@ -5,9 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.antgskds.calendarassistant.calendar.data.EventsDatabase
 import com.antgskds.calendarassistant.calendar.models.EventTags
 import com.antgskds.calendarassistant.core.center.CalendarCenter
-import com.antgskds.calendarassistant.core.course.CourseEventMapper
 import com.antgskds.calendarassistant.core.migration.LegacyDataMigrationCoordinator
-import com.antgskds.calendarassistant.data.model.Course
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.repository.SettingsRepository
 import org.junit.Assert.assertEquals
@@ -156,49 +154,4 @@ class LegacyMigrationInstrumentedTest {
         }
     }
 
-    @Test
-    fun courseParentCanBeRebasedWhenTimetableChanges() {
-        val oldSettings = MySettings(
-            semesterStartDate = "2026-04-20",
-            timeTableJson = """
-                [
-                  {"index":1,"startTime":"08:30","endTime":"09:15","period":"morning"},
-                  {"index":2,"startTime":"09:25","endTime":"10:10","period":"morning"}
-                ]
-            """.trimIndent()
-        )
-        val newSettings = oldSettings.copy(
-            timeTableJson = """
-                [
-                  {"index":1,"startTime":"09:00","endTime":"09:45","period":"morning"},
-                  {"index":2,"startTime":"09:55","endTime":"10:40","period":"morning"}
-                ]
-            """.trimIndent()
-        )
-        val course = Course(
-            id = "instrumented-course-rebase",
-            name = "instrumented-course-rebase",
-            color = -15584170,
-            dayOfWeek = 6,
-            startNode = 1,
-            endNode = 2,
-            startWeek = 1,
-            endWeek = 1,
-            excludedDates = listOf("2026-04-25")
-        )
-        val oldParent = CourseEventMapper.toParentEvent(course, oldSettings)
-        val rebasedCourse = CourseEventMapper.toCourse(oldParent, oldSettings)!!
-        val newParent = CourseEventMapper.toParentEvent(
-            course = rebasedCourse,
-            settings = newSettings,
-            existingParent = oldParent.copy(id = 42L, exdates = emptyList())
-        )
-        val zone = ZoneId.of("Asia/Shanghai")
-        val expectedStart = LocalDateTime.of(2026, 4, 25, 9, 0).atZone(zone).toEpochSecond()
-        val expectedEnd = LocalDateTime.of(2026, 4, 25, 10, 40).atZone(zone).toEpochSecond()
-
-        assertEquals(expectedStart, newParent.startTS)
-        assertEquals(expectedEnd, newParent.endTS)
-        assertEquals(listOf("20260425T010000Z"), newParent.exdates)
-    }
 }

@@ -178,10 +178,6 @@ dependencies {
     implementation("dev.rikka.shizuku:provider:13.1.5")
     implementation("dev.rikka.shizuku:aidl:13.1.5")
 
-    // === MIUI 超级岛 (LSPosed/Xposed) ===
-    implementation("io.github.d4viddf:hyperisland_kit:0.4.3")
-    compileOnly("de.robv.android.xposed:api:82")
-
     // === Room 数据库 ===
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

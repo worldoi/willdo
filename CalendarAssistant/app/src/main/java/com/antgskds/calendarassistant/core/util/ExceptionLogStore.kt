@@ -32,6 +32,7 @@ object ExceptionLogStore {
     }
 
     fun append(context: Context, tag: String, message: String, throwable: Throwable? = null) {
+        if (!AppLogger.fileLoggingEnabled) return
         val entry = buildEntry(tag, message, throwable)
         synchronized(lock) {
             val today = LocalDate.now().format(dateFormatter)
