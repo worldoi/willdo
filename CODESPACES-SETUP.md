@@ -1,8 +1,9 @@
 # 在 GitHub Codespaces 中编译 CalendarAssistant（Android）
 
 本仓库是 **Android + Kotlin (Gradle)** 单模块应用，工程位于 `CalendarAssistant/` 子目录。
-GitHub Codespaces 通过仓库根目录的 `.devcontainer/devcontainer.json` 自动配置 **JDK 17 + 基础 Android SDK**，
-随后用根目录的 `start.sh` 安装完整 SDK 并编译出 APK。**云端无模拟器/真机**，运行需靠实体机 `adb` 无线调试。
+GitHub Codespaces 通过仓库根目录的 `.devcontainer/devcontainer.json` 拉起 **Ubuntu 22.04 基础镜像**，
+并在创建时 `apt` 安装 **JDK 17**；随后由根目录的 `start.sh` 安装完整 Android SDK 并编译出 APK。
+**云端无模拟器/真机**，运行需靠实体机 `adb` 无线调试。
 
 > 对照文档：Google IDX 用 `dev.nix` / `IDX-SETUP.md`；GitHub Codespaces 用 `.devcontainer/devcontainer.json`（本文件所述）。
 > 两者共享同一个 `start.sh` 构建脚本，逻辑一致。
@@ -20,14 +21,15 @@ GitHub Codespaces 通过仓库根目录的 `.devcontainer/devcontainer.json` 自
 ## 2. 创建 Codespace
 
 1. 仓库页面顶部 **Code ▸ Codespaces** 标签页 → **Create codespace on main**
-2. 区域（Region）选离你近的（如 Southeast Asia），机型选 **4 核 8 GB**（与 `devcontainer.json` 的 `hostRequirements` 对应；更小的机型编译可能 OOM）。
+2. 区域（Region）选离你近的（如 Southeast Asia），机型选至少 **2 核 4 GB**（与 `devcontainer.json` 的 `hostRequirements` 对应；更小的机型编译可能 OOM，更大机型更稳）。
 3. 点 **Create**。
 
 首次创建时，GitHub 会：
-- 拉取 `mcr.microsoft.com/devcontainers/android:0-17` 镜像（含 JDK 17 + 基础 Android SDK + gradle）
-- 按 `.devcontainer/devcontainer.json` 注入 `ANDROID_HOME/JAVA_HOME` 等环境变量
+- 拉取 `mcr.microsoft.com/devcontainers/base:ubuntu-22.04` 基础镜像（**不含** Android SDK，也不含 JDK）
+- 在 `onCreateCommand` 里 `apt` 安装 **JDK 17**（`openjdk-17-jdk-headless`）+ `curl`/`unzip`
 - 安装列出的 4 个 VS Code 扩展
-- 执行 `onCreateCommand` 给 `start.sh`、`gradlew` 加执行权限
+- 给 `start.sh`、`gradlew` 加执行权限
+- `ANDROID_HOME` / `JAVA_HOME` 由 `start.sh` 在构建时动态设置（不依赖镜像预置），更稳妥
 
 环境就绪后自动打开一个浏览器里的 VS Code。
 
@@ -70,12 +72,12 @@ adb -s <设备ID> install -r CalendarAssistant/app/build/outputs/apk/debug/app-d
   但编译会因 `compileSdk` 不匹配报错。**兜底**：把 `CalendarAssistant/app/build.gradle.kts` 的
   `compileSdk` 改为 `36`，并把 `CalendarAssistant/gradle.properties` 里
   `android.suppressUnsupportedCompileSdk=37,37.0` 改为 `36`。
-- **机器专属 JDK 路径已移除**：`gradle.properties` 里原来 `org.gradle.java.home=C:/Users/.../corretto-17`
-  已删除（会破坏云端构建）。Codespaces 用 `JAVA_HOME` 环境变量定位 JDK 17，由 devcontainer 注入。
+- **JDK 由 apt 安装**：`devcontainer.json` 的 `onCreateCommand` 装 `openjdk-17-jdk-headless`，`start.sh` 用
+  `which java` 自动推导 `JAVA_HOME`，不写死路径，避免镜像差异导致错位。
 - **`local.properties` 未被 git 跟踪**，其中 `sdk.dir` 不会污染仓库；Codespaces/IDX 都用 `ANDROID_HOME`。
 - **NDK 不需要**：项目仅用 `abiFilters` 裁剪 so，无 `externalNativeBuild`。
 - **网络/依赖**：`settings.gradle.kts` 里的阿里云镜像在云端可用；若拉取慢可临时注释，仅留 `google()` + `mavenCentral()`。
-- **磁盘**：compileSdk 37 + Gradle 缓存 + SDK 约占数 GB，已要求 `hostRequirements.storage = 32gb`。
+- **磁盘**：compileSdk 37 + Gradle 缓存 + SDK 约占数 GB，已要求 `hostRequirements` 至少 `memory = 4gb`（去掉 `storage` 以放宽可选机型）。
 - 完整依赖见同目录 `DEPENDENCIES.md`。
 
 ---
@@ -85,8 +87,8 @@ adb -s <设备ID> install -r CalendarAssistant/app/build/outputs/apk/debug/app-d
 | 项 | GitHub Codespaces | Google IDX |
 | --- | --- | --- |
 | 配置文件 | `.devcontainer/devcontainer.json` | `dev.nix` |
-| 镜像 | `mcr.microsoft.com/devcontainers/android:0-17` | IDX 托管 Nix 环境 |
-| JDK17 | 镜像自带 + 环境变量注入 | `pkgs.jdk17` |
+| 镜像 | `mcr.microsoft.com/devcontainers/base:ubuntu-22.04` + apt JDK 17 | IDX 托管 Nix 环境 |
+| JDK17 | apt 安装 `openjdk-17`（onCreateCommand） | `pkgs.jdk17` |
 | 构建脚本 | 共用 `start.sh` | 共用 `start.sh` |
 | 真机运行 | `adb` 无线调试 | `adb` 无线调试 |
 

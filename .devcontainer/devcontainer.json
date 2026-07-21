@@ -1,6 +1,7 @@
 {
   "name": "Will-do / CalendarAssistant (Android)",
-  "image": "mcr.microsoft.com/devcontainers/android:0-17",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "remoteUser": "root",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -11,10 +12,7 @@
       ]
     }
   },
-  "remoteEnv": {
-    "JAVA_HOME": "/opt/java/openjdk"
-  },
-  "onCreateCommand": "chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
+  "onCreateCommand": "apt-get update -y && apt-get install -y --no-install-recommends openjdk-17-jdk-headless curl unzip && chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
   "hostRequirements": {
     "cpus": 2,
     "memory": "4gb"
