@@ -18,8 +18,8 @@
   },
   "onCreateCommand": "chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
   "hostRequirements": {
-    "cpus": 4,
-    "memory": "8gb",
+    "cpus": 2,
+    "memory": "4gb",
     "storage": "32gb"
   },
   "forwardPorts": []
