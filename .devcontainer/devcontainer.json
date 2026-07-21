@@ -12,8 +12,6 @@
     }
   },
   "remoteEnv": {
-    "ANDROID_HOME": "${containerEnv:HOME}/Android/Sdk",
-    "ANDROID_SDK_ROOT": "${containerEnv:HOME}/Android/Sdk",
     "JAVA_HOME": "/opt/java/openjdk"
   },
   "onCreateCommand": "chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
