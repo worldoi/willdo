@@ -21,7 +21,7 @@ GitHub Codespaces 通过仓库根目录的 `.devcontainer/devcontainer.json` 拉
 ## 2. 创建 Codespace
 
 1. 仓库页面顶部 **Code ▸ Codespaces** 标签页 → **Create codespace on main**
-2. 区域（Region）选离你近的（如 Southeast Asia），机型选至少 **2 核 4 GB**（与 `devcontainer.json` 的 `hostRequirements` 对应；更小的机型编译可能 OOM，更大机型更稳）。
+2. 区域（Region）选离你近的（如 Southeast Asia），机型选 **2 核 8 GB**（与 `devcontainer.json` 的 `hostRequirements` 对应；该应用含 onnxruntime / sherpa-onnx / MLKit 等大型 native 库，4 GB 会在打包阶段 OOM）。
 3. 点 **Create**。
 
 首次创建时，GitHub 会：

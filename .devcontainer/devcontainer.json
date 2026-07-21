@@ -15,7 +15,7 @@
   "onCreateCommand": "apt-get update -y && apt-get install -y --no-install-recommends openjdk-17-jdk-headless curl unzip && chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
   "hostRequirements": {
     "cpus": 2,
-    "memory": "4gb"
+    "memory": "8gb"
   },
   "forwardPorts": []
 }
