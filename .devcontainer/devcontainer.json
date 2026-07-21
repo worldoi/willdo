@@ -12,15 +12,14 @@
     }
   },
   "remoteEnv": {
-    "ANDROID_HOME": "/opt/android-sdk",
-    "ANDROID_SDK_ROOT": "/opt/android-sdk",
+    "ANDROID_HOME": "${containerEnv:HOME}/Android/Sdk",
+    "ANDROID_SDK_ROOT": "${containerEnv:HOME}/Android/Sdk",
     "JAVA_HOME": "/opt/java/openjdk"
   },
   "onCreateCommand": "chmod +x ./start.sh CalendarAssistant/gradlew 2>/dev/null || true",
   "hostRequirements": {
     "cpus": 2,
-    "memory": "4gb",
-    "storage": "32gb"
+    "memory": "4gb"
   },
   "forwardPorts": []
 }
