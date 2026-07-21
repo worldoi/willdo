@@ -14,7 +14,9 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
 # ---- 1. Environment ----
-export ANDROID_HOME="${ANDROID_HOME:-$HOME/Android/Sdk}"
+# 强制使用我们自己的干净 SDK 目录，不能沿用 devcontainers/android 基础镜像自带的
+# /opt/android-sdk（里面带过旧的 build-tools 25.0.2，会让 AGP 枚举时抛 IllegalArgumentException）
+export ANDROID_HOME="$HOME/Android/Sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(which java)")")")}"
 export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
@@ -42,6 +44,11 @@ yes | "$SDKMANAGER" --licenses >/dev/null || true
 if [ ! -d "$ANDROID_HOME/platforms/android-37" ]; then
   "$SDKMANAGER" "platforms;android-37" || "$SDKMANAGER" "platforms;android-36"
 fi
+
+# 防御：清掉任何过旧的 build-tools（如 25.0.2），避免 AGP 枚举 SDK 时解析失败
+rm -rf "$ANDROID_HOME/build-tools/25.0.2" 2>/dev/null || true
+# 删除可能指向基础镜像旧 SDK 的 local.properties，强制 AGP 使用上面的 ANDROID_HOME
+rm -f "$REPO_ROOT/CalendarAssistant/local.properties"
 
 # ---- 4. Build the debug APK ----
 cd "$REPO_ROOT/CalendarAssistant"
