@@ -1,10 +1,10 @@
 <div align="center">
 
-<h1>Will do | AIXINJUELUOAI</h1>
+<h1>Will do</h1>
 
 ![License](https://img.shields.io/badge/license-GPLv3-red.svg)
-![Android](https://img.shields.io/badge/Android-8.0%2B-green.svg)
-![Kotlin](https://img.shields.io/badge/Kotlin-2.0-blue.svg)
+![Android](https://img.shields.io/badge/Android-13%2B-green.svg)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.3-blue.svg)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material3-purple.svg)
 
 <p>
@@ -17,7 +17,7 @@
 
 **Will do** 是一款不仅“能做”而且“会做”的智能日历助手。它利用现代 AI 技术（LLM）与系统深度集成（无障碍服务、实况通知），致力于解决传统日历录入繁琐、提醒单一的痛点。
 
-无论是复杂的大学课程表、琐碎的取件取餐码，还是高铁飞机的出行计划，Will do 都能通过**一键识屏**或**文本解析**自动生成结构化日程，并通过 **Android 实况胶囊 (Live Activity)** 提供灵动交互体验。
+无论是琐碎的取件取餐码，还是高铁飞机的出行计划，Will do 都能通过**一键识屏**或**文本解析**自动生成结构化日程，并通过 **Android 实况胶囊 (Live Activity)** 提供灵动交互体验。
 
 ## ✨ 核心功能
 
@@ -27,21 +27,15 @@
 - **多场景覆盖**：
   - 🚄 **出行**：自动识别火车票（检票口/座位）、网约车（车牌/车型/颜色）。
   - 📦 **取件**：区分快递取件（📦）与餐饮取餐（🍔），支持取件码聚合显示。
-  - 📅 **日程**：会议、约会、课程等常规日程。
+  - 📅 **日程**：会议、约会等常规日程。
 - **一键识屏**：通过快捷设置磁贴或侧滑手势，利用 ML Kit 本地 OCR + AI 快速录入。
 - **图片导入识别**：支持从相册选择图片进行 OCR + AI 解析。
 
 ### 💊 实况胶囊通知 (Live Capsule)
-适配 Android 16 类原生/Oneui/ColorOS/Flyme/HyperOS 系统，在锁屏与通知栏提供类似“灵动岛”的实时状态：
+适配 Android 16 类原生/OneUI/ColorOS 系统，在锁屏与通知栏提供类似“灵动岛”的实时状态：
 - **动态标题**：火车票显示检票口/座位，网约车显示车牌号，倒计时结束自动流转。
 - **OCR 胶囊**：识别进度/结果优先显示，完成后自动恢复事件胶囊。
-- **网速胶囊**：优雅的实时网速监控（v1.2.1 优化格式）。
 - **主动唤醒**：基于 `CapsuleStateManager` 的智能状态计算，仅在需要时唤醒服务，极致省电。
-
-### 🎓 课程表管理系统
-- **复杂排课支持**：支持单双周、多学期、排除特定日期及临时调课（影子课程机制）。
-- **一键导入**：兼容“醒课表”数据格式导入。
-- **桌面与日历融合**：课程数据自动转换为虚拟日程，不污染系统日历，但在时间轴中无缝展示。
 
 ### 🪟 悬浮窗交互
 - 长按音量+键呼出悬浮日程，覆盖全屏应用。

@@ -1,7 +1,7 @@
 # CalendarAssistant（Will do）开发约定
 
 智能日历助手，Kotlin + Jetpack Compose，包名 `com.antgskds.calendarassistant`。
-版本以 `app/build.gradle.kts` 为准（当前 2.1.4 / versionCode 71 / minSdk 33），**不要采信 README 里的版本**。
+版本以 `app/build.gradle.kts` 为准（当前 2.2.0 / versionCode 87 / minSdk 33），**不要采信 README 里的版本**。
 
 ## 核心纪律：先注册，再开发
 
@@ -28,7 +28,7 @@
 业务层**不要**直接 `NotificationManager.notify()` 或建 `NotificationCompat.Builder`。
 - 普通通知：经 `feature/api/notification`（NotificationApi）→ `NotificationCenter` → `platform/notification` 的 Publisher。
 - 日程提醒：单次/重复/错过补发都走 `core/center/ScheduleNotificationBridge` → NotificationApi，已统一，勿走旧 `NotificationScheduler` 排普通提醒（它现在只排胶囊闹钟）。
-- 胶囊（实况通知）：`CapsuleStateManager` 只算状态，发布交 `service/capsule/CapsuleDispatcher`（内部分流原生/魅族/小米超级岛）。小米超级岛走 Xposed/SystemUI 跨进程，是底层 transport 例外。
+- 胶囊（实况通知）：`CapsuleStateManager` 只算状态，发布交 `service/capsule/CapsuleDispatcher`（内部分流原生/厂商适配；Flyme 图标染色等残留兼容仍在，小米超级岛 Xposed transport 已移除）。
 - 通知「展示模板层」(`shared/management/resource/notification/display/`) 禁止 import NotificationManager/Compat/Builder/PendingIntent/Repository/Room/*Center（守卫 `TEMPLATE_NO_*` 强制）。
 
 ## 主链路：入口可多，主流程一条（同类能力统一入口）
@@ -42,7 +42,7 @@
 
 ## 验证纪律
 
-- 每次改动后：`./gradlew.bat :app:compileDebugKotlin` → `checkArchitectureGuardrails` → `:app:assembleDebug`。
+- 每次改动后：本地 Windows 用 `./gradlew.bat :app:compileDebugKotlin`，Codespaces/Linux 用 `./gradlew :app:compileDebugKotlin`；随后 `checkArchitectureGuardrails` → `:app:assembleDebug`。（Codespaces 一键构建见仓库根 `start.sh` 与 `CODESPACES-SETUP.md`）
 - **判断构建成败只看日志里的 `BUILD SUCCESSFUL`**，后台任务的 failed 通知不可靠。
 - 装机测试只用测试机 `36e06fca`（已 root），**绝不装主力机 `3B162U0051H00000`**，命令显式 `adb -s 36e06fca`。
 - `NotificationAlarmReceiver` 非导出，adb 触发调试动作需 root broadcast：
