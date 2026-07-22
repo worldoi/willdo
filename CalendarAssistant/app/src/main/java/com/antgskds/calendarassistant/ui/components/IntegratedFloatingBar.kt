@@ -36,8 +36,10 @@ import com.antgskds.calendarassistant.ui.haptic.rememberAppHaptics
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material.icons.Icons
@@ -170,10 +172,15 @@ fun IntegratedFloatingBar(
         ) {
             AnimatedVisibility(
                 visible = actionPanelOpen,
-                enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
+                enter = fadeIn(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) +
+                        slideInVertically(animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)) { fullHeight -> fullHeight },
+                exit = fadeOut(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) +
+                        slideOutVertically(animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)) { fullHeight -> fullHeight }
             ) {
                 ActionExpandPanel(
+                    containerColor = navBg,
+                    elevation = navElevation,
+                    contentColor = navContent,
                     onSearchClick = onSearchClick,
                     onImageClick = onImageClick,
                     onEditClick = onEditClick,
@@ -314,20 +321,23 @@ private fun HydrogenNavIcon(
 
 @Composable
 private fun ActionExpandPanel(
+    containerColor: Color,
+    elevation: Dp,
+    contentColor: Color,
     onSearchClick: () -> Unit,
     onImageClick: () -> Unit,
     onEditClick: () -> Unit,
     onCloseClick: () -> Unit
 ) {
-    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-    val panelBg = if (isDark) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surface
+    // 与底部悬浮导航栏完全等宽、左右对齐：直接 fillMaxWidth（导航栏卡片同样为全宽），
+    // 仅保留与导航栏之间的少量统一间距；背景色 / 圆角 / 阴影均使用与导航栏一致的参数。
     Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = panelBg),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(IntegratedFloatingBarCornerRadius),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
+            .padding(bottom = 8.dp)
     ) {
         Row(
             modifier = Modifier
@@ -335,36 +345,44 @@ private fun ActionExpandPanel(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionMenuItem(icon = Icons.Default.Search, label = "搜索", onClick = onSearchClick, modifier = Modifier.weight(1f))
-            ActionMenuItem(icon = Icons.Default.Image, label = "图片", onClick = onImageClick, modifier = Modifier.weight(1f))
-            ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", onClick = onEditClick, modifier = Modifier.weight(1f))
-            ActionMenuItem(icon = Icons.Default.Close, label = "关闭", onClick = onCloseClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Search, label = "搜索", contentColor = contentColor, onClick = onSearchClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Image, label = "图片", contentColor = contentColor, onClick = onImageClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", contentColor = contentColor, onClick = onEditClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Close, label = "关闭", contentColor = contentColor, onClick = onCloseClick, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun ActionMenuItem(
+    icon: ImageVector,
+    label: String,
+    contentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val haptics = rememberAppHaptics()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
         modifier = modifier
-            .fillMaxHeight()
+            // 默认 ripple 按压反馈，与底部导航栏 Tab 一致
             .clickable { haptics.click(); onClick() }
-            .padding(vertical = 8.dp)
+            .padding(vertical = 6.dp)
     ) {
+        // 图标尺寸与导航栏 Tab 按钮图标一致（26dp）
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(22.dp)
+            tint = contentColor,
+            modifier = Modifier.size(26.dp)
         )
         Spacer(modifier = Modifier.height(4.dp))
+        // 字号采用与 Tab 标签一致的 labelMedium
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor
         )
     }
 }
