@@ -175,6 +175,7 @@ class CapsuleDispatcher(
             .setContentText(summaryText)
             .setGroup(NativeCapsuleProvider.GROUP_SCHEDULE_REMINDERS)
             .setGroupSummary(true)
+            .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(contentIntent)
             .setShowWhen(false)

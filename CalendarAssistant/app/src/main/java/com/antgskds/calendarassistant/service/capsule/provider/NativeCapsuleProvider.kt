@@ -75,8 +75,11 @@ class NativeCapsuleProvider : ICapsuleProvider {
                 .bigText(expandedText)
         )
 
-        // Android 15+: 请求提升为实况通知（Live Activity）
-        if (Build.VERSION.SDK_INT >= 35) {
+        // Android 15+: 请求提升为实况通知（Live Activity / 流体云状态栏胶囊）
+        // 注意：日程类胶囊(SCHEDULE)不提升——提升后会变成状态栏独立胶囊，
+        // 不参与通知栏 setGroup 折叠分组，导致多条日程无法折叠成「X条待办日程」。
+        // 非日程类（取件/录音/识屏等）仍提升为流体云状态栏胶囊。
+        if (Build.VERSION.SDK_INT >= 35 && item.type != CapsuleType.SCHEDULE) {
             val extras = Bundle()
             extras.putBoolean("android.requestPromotedOngoing", true)
             builder.addExtras(extras)
