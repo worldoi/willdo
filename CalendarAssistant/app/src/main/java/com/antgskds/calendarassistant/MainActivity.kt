@@ -56,7 +56,6 @@ import com.antgskds.calendarassistant.core.util.PrivilegeManager
 import com.antgskds.calendarassistant.data.model.HomeEntryKey
 import com.antgskds.calendarassistant.data.model.sanitizeHomeStartPageKey
 import com.antgskds.calendarassistant.data.model.visibleHomeBottomItems
-import com.antgskds.calendarassistant.data.model.UiStyle
 import com.antgskds.calendarassistant.ui.components.PredictiveFloatingActionCard
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarBottomSpacing
 import com.antgskds.calendarassistant.ui.components.IntegratedFloatingBarHeight
@@ -100,7 +99,6 @@ private data class ActivityAppearanceConfig(
     val themeMode: Int,
     val themeColorScheme: String,
     val customThemeColorHex: String,
-    val uiStyle: String
 )
 
 class MainActivity : ComponentActivity() {
@@ -211,14 +209,12 @@ class MainActivity : ComponentActivity() {
             val promptUpdateDialogState by mainViewModel.promptUpdateDialogState.collectAsState()
             val clipboardPrompt by app.clipboardCodeCenter.pendingPrompt.collectAsState()
             val localModelResiduePrompt by app.localModelResidueCenter.pendingPrompt.collectAsState()
-            val uiStyle = UiStyle.fromName(settings.uiStyle)
 
             val appearanceConfig = ActivityAppearanceConfig(
                 uiSize = settings.uiSize,
                 themeMode = settings.themeMode,
                 themeColorScheme = settings.themeColorScheme,
                 customThemeColorHex = settings.customThemeColorHex,
-                uiStyle = settings.uiStyle
             )
             var appliedAppearanceConfig by remember { mutableStateOf<ActivityAppearanceConfig?>(null) }
             LaunchedEffect(appearanceConfig) {
@@ -240,7 +236,6 @@ class MainActivity : ComponentActivity() {
 
             // ✅ 修复缩进问题
             CalendarAssistantStyleTheme(
-                uiStyle = uiStyle,
                 darkTheme = isDarkTheme,
                 dynamicColor = themeColorSchemeEnum == ThemeColorScheme.DEFAULT,
                 themeColorScheme = themeColorSchemeEnum,
@@ -282,7 +277,7 @@ class MainActivity : ComponentActivity() {
                     bottomInset + 16.dp
                 }
                 val showClipboardPromptOnMaterialHome =
-                    currentBackStackEntry?.destination?.route == AppRoutes.Home && uiStyle == UiStyle.MATERIAL3
+                    currentBackStackEntry?.destination?.route == AppRoutes.Home
 
                 var crashDialogShown by remember { mutableStateOf(false) }
                 var cleanupDialogShown by remember { mutableStateOf(false) }
@@ -388,20 +383,7 @@ class MainActivity : ComponentActivity() {
                             popEnterTransition = { navBackwardEnterTransition() },
                             popExitTransition = { null }
                         ) {
-                            when (uiStyle) {
-                                UiStyle.MIUI -> com.antgskds.calendarassistant.miui.page_display.HomeScreen(
-                                    mainViewModel = mainViewModel,
-                                    settingsViewModel = settingsViewModel,
-                                    pickupTimestamp = pickupEventTimestamp.value,
-                                    onNavigateToSettings = { destination ->
-                                        if (destination.name == SettingsDestination.Logout.name) {
-                                            finish()
-                                        } else {
-                                            navController.navigate(AppRoutes.settings(destination.name))
-                                        }
-                                    }
-                                )
-                                UiStyle.MATERIAL3 -> HomeScreen(
+                                HomeScreen(
                                     mainViewModel = mainViewModel,
                                     settingsViewModel = settingsViewModel,
                                      pickupTimestamp = pickupEventTimestamp.value,
@@ -428,7 +410,6 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 )
-                            }
                         }
 
                         composable(
@@ -525,8 +506,7 @@ class MainActivity : ComponentActivity() {
                                 navController.popBackStack()
                             }
                             val typeName = backStackEntry.arguments?.getString(AppRoutes.SettingsTypeArg) ?: ""
-                            when (uiStyle) {
-                                UiStyle.MIUI -> com.antgskds.calendarassistant.miui.page_display.SettingsDetailScreen(
+                                SettingsDetailScreen(
                                     destinationStr = typeName,
                                     mainViewModel = mainViewModel,
                                     settingsViewModel = settingsViewModel,
@@ -534,15 +514,6 @@ class MainActivity : ComponentActivity() {
                                     onLogout = { finish() },
                                     uiSize = settings.uiSize
                                 )
-                                UiStyle.MATERIAL3 -> SettingsDetailScreen(
-                                    destinationStr = typeName,
-                                    mainViewModel = mainViewModel,
-                                    settingsViewModel = settingsViewModel,
-                                    onExitSettings = { navController.popBackStack() },
-                                    onLogout = { finish() },
-                                    uiSize = settings.uiSize
-                                )
-                            }
                         }
                     }
 

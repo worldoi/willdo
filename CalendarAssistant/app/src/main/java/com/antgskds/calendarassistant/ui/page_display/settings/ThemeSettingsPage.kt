@@ -36,7 +36,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.antgskds.calendarassistant.data.model.MySettings
-import com.antgskds.calendarassistant.data.model.UiStyle
 import com.antgskds.calendarassistant.ui.components.AppCard
 import com.antgskds.calendarassistant.ui.components.AppSettingsCard
 import com.antgskds.calendarassistant.ui.haptic.HapticValueChangeEffect
@@ -59,7 +58,6 @@ fun ThemeSettingsPage(
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val isCustomTheme = settings.themeColorScheme == ThemeColorScheme.CUSTOM.name
-    val selectedUiStyle = UiStyle.fromName(settings.uiStyle)
     var isHexFocused by remember { mutableStateOf(false) }
     val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
@@ -113,16 +111,6 @@ fun ThemeSettingsPage(
                     cardTitleStyle = cardTitleStyle,
                     cardSubtitleStyle = cardSubtitleStyle,
                     cardValueStyle = cardValueStyle
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-                UiStyleSettingItem(
-                    selectedStyle = selectedUiStyle,
-                    onStyleSelected = { viewModel.updateUiStyle(it.name) },
-                    cardTitleStyle = cardTitleStyle,
-                    cardSubtitleStyle = cardSubtitleStyle
                 )
         }
 
@@ -197,62 +185,6 @@ fun ThemeSettingsPage(
     }
 
     }
-    }
-}
-
-@Composable
-private fun UiStyleSettingItem(
-    selectedStyle: UiStyle,
-    onStyleSelected: (UiStyle) -> Unit,
-    cardTitleStyle: androidx.compose.ui.text.TextStyle,
-    cardSubtitleStyle: androidx.compose.ui.text.TextStyle
-) {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text("界面风格", style = cardTitleStyle)
-        Text("选择主界面和悬浮窗的前端样式", style = cardSubtitleStyle)
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            UiStyle.entries.forEach { style ->
-                UiStyleOptionChip(
-                    style = style,
-                    selected = selectedStyle == style,
-                    onClick = { onStyleSelected(style) },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun UiStyleOptionChip(
-    style: UiStyle,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val haptics = rememberAppHaptics()
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .clickable { haptics.selection(); onClick() }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = style.label,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-            color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }
 

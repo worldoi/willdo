@@ -26,7 +26,6 @@ import com.antgskds.calendarassistant.data.model.AppBackupOptions
 import com.antgskds.calendarassistant.data.model.DEFAULT_EVENT_COLOR_PALETTE_HEX
 import com.antgskds.calendarassistant.data.model.FloatingBallGestureAction
 import com.antgskds.calendarassistant.data.model.MySettings
-import com.antgskds.calendarassistant.data.model.UiStyle
 import com.antgskds.calendarassistant.data.model.sanitizeEventColorPaletteHex
 import com.antgskds.calendarassistant.ui.theme.ThemeColorScheme
 import com.antgskds.calendarassistant.ui.theme.normalizeThemeHexColor
@@ -418,12 +417,6 @@ class SettingsViewModel(
         }
     }
 
-    fun updateUiStyle(style: String) {
-        val normalizedStyle = UiStyle.fromName(style).name
-        viewModelScope.launch {
-            settingsOperationApi.updateSettings(settings.value.copy(uiStyle = normalizedStyle))
-        }
-    }
 
     fun updateEdgeBarSettings(
         enabled: Boolean? = null,
