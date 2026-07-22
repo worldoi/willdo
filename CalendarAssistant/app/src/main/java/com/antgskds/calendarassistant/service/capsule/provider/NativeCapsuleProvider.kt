@@ -21,6 +21,8 @@ import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 class NativeCapsuleProvider : ICapsuleProvider {
     companion object {
         private const val TAG = "NativeCapsuleProvider"
+        // 与 CapsuleDispatcher 共用的通知分组键：所有 SCHEDULE 胶囊归入同组，便于折叠成「X条待办日程」
+        const val GROUP_SCHEDULE_REMINDERS = "calendar_assistant_schedule_reminders"
     }
 
     override fun buildNotification(

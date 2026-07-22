@@ -6,6 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.antgskds.calendarassistant.calendar.helpers.CALDAV
 import com.antgskds.calendarassistant.calendar.helpers.FLAG_ALL_DAY
+import com.antgskds.calendarassistant.calendar.helpers.FLAG_MOVED_TO_QUICK_MEMO
 import com.antgskds.calendarassistant.calendar.helpers.FLAG_NO_END_TIME
 import com.antgskds.calendarassistant.calendar.helpers.REGULAR_EVENT_TYPE_ID
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_NOTIFICATION

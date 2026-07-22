@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.antgskds.calendarassistant.App
@@ -172,7 +173,7 @@ class CapsuleDispatcher(
             .setSmallIcon(R.drawable.ic_notification_small)
             .setContentTitle("${scheduleCaps.size}条待办日程")
             .setContentText(summaryText)
-            .setGroup(GROUP_SCHEDULE_REMINDERS)
+            .setGroup(NativeCapsuleProvider.GROUP_SCHEDULE_REMINDERS)
             .setGroupSummary(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(contentIntent)
@@ -185,6 +186,5 @@ class CapsuleDispatcher(
     companion object {
         private const val TAG = "CapsuleDispatcher"
         private const val AGGREGATE_PICKUP_ID = "AGGREGATE_PICKUP"
-        private const val GROUP_SCHEDULE_REMINDERS = "calendar_assistant_schedule_reminders"
     }
 }
