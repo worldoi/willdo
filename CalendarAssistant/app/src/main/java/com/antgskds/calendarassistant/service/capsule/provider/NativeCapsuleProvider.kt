@@ -21,8 +21,6 @@ import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 class NativeCapsuleProvider : ICapsuleProvider {
     companion object {
         private const val TAG = "NativeCapsuleProvider"
-        // 与 CapsuleDispatcher 共用的通知分组键：所有 SCHEDULE 胶囊归入同组，便于折叠成「X条待办日程」
-        const val GROUP_SCHEDULE_REMINDERS = "calendar_assistant_schedule_reminders"
     }
 
     override fun buildNotification(
@@ -55,11 +53,6 @@ class NativeCapsuleProvider : ICapsuleProvider {
             .setWhen(System.currentTimeMillis())
             .setShowWhen(true)
 
-        // 日程类胶囊归入同一通知组，便于通知栏折叠成「X条待办日程」
-        if (item.type == CapsuleType.SCHEDULE) {
-            builder.setGroup(GROUP_SCHEDULE_REMINDERS)
-        }
-
         builder.setContentText(
             if (item.type == CapsuleType.QUICK_MEMO_RECORDING) " " else display.secondaryText ?: " "
         )
@@ -75,11 +68,9 @@ class NativeCapsuleProvider : ICapsuleProvider {
                 .bigText(expandedText)
         )
 
-        // Android 15+: 请求提升为实况通知（Live Activity / 流体云状态栏胶囊）
-        // 注意：日程类胶囊(SCHEDULE)不提升——提升后会变成状态栏独立胶囊，
-        // 不参与通知栏 setGroup 折叠分组，导致多条日程无法折叠成「X条待办日程」。
-        // 非日程类（取件/录音/识屏等）仍提升为流体云状态栏胶囊。
-        if (Build.VERSION.SDK_INT >= 35 && item.type != CapsuleType.SCHEDULE) {
+        // Android 15+: 所有胶囊（含聚合日程胶囊）请求提升为实况通知（Live Activity / 流体云状态栏胶囊）。
+        // 日程已是单条聚合胶囊，提升为状态栏流体云不会触发「多条独立胶囊无法折叠」的问题（本就只有一个通知位）。
+        if (Build.VERSION.SDK_INT >= 35) {
             val extras = Bundle()
             extras.putBoolean("android.requestPromotedOngoing", true)
             builder.addExtras(extras)
@@ -105,6 +96,8 @@ class NativeCapsuleProvider : ICapsuleProvider {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             if (tapEventId != null) {
                 putExtra(MainActivity.EXTRA_OPEN_EVENT_ID, tapEventId)
+            } else if (item.display.tapOpensAllSchedule) {
+                putExtra(MainActivity.EXTRA_OPEN_ALL_SCHEDULES, true)
             } else if (item.display.tapOpensPickupList) {
                 putExtra("openPickupList", true)
             }

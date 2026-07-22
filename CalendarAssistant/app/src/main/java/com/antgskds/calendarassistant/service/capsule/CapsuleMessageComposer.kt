@@ -8,6 +8,10 @@ import com.antgskds.calendarassistant.data.model.LiveNotificationTemplateMode
 import com.antgskds.calendarassistant.platform.receiver.EventActionReceiver
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.RecognitionLiveDisplay
 import com.antgskds.calendarassistant.shared.management.resource.notification.display.live.template.SystemLiveDisplay
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 object CapsuleMessageComposer {
     // --- 非事件类胶囊 ---
@@ -65,5 +69,64 @@ object CapsuleMessageComposer {
 
     fun composeAggregatePickup(context: Context, pickupEvents: List<Event>): CapsuleDisplayModel {
         return EventCapsulePresenter.present(context, pickupEvents).displayModel
+    }
+
+    /**
+     * 聚合所有待办日程为单条胶囊内容：
+     * - 顶部汇总标题「共 X 条待办日程」
+     * - 按开始时间先后列出每条标题 + 起止时间（≤2 条完整；>4 条只列前 3 条并补「还有 X 条待办」）
+     * - 「已完成」/「移至随口记」两个动作（动作不携带 extraLongKey，由发布器兜底注入胶囊 item.id =
+     *   最近一条待办的 eventId，接收器据此精确作用于该条）
+     * - 点击主体跳「全部日程」页
+     */
+    fun composeAggregateSchedule(
+        context: Context,
+        events: List<Event>
+    ): CapsuleDisplayModel {
+        val sorted = events.sortedBy { it.startTS }
+        val count = sorted.size
+        val primaryText = "共 $count 条待办日程"
+        val first = sorted.first()
+        val secondaryText = "${first.title.ifBlank { "未命名日程" }} · ${formatScheduleTime(first)}"
+
+        val shownCount = if (count > 4) 3 else count
+        val shown = sorted.take(shownCount)
+        val listText = shown.joinToString("\n") { event ->
+            "${event.title.ifBlank { "未命名日程" }}\n${formatScheduleTime(event)}"
+        }
+        val remaining = count - shownCount
+        val expandedText = buildString {
+            append(listText)
+            if (remaining > 0) append("\n还有 $remaining 条待办")
+        }
+
+        val actions = listOf(
+            CapsuleActionSpec(label = "已完成", receiverAction = EventActionReceiver.ACTION_COMPLETE_SCHEDULE),
+            CapsuleActionSpec(label = "移至随口记", receiverAction = EventActionReceiver.ACTION_MOVE_TO_QUICK_MEMO)
+        )
+
+        return CapsuleDisplayModel(
+            shortText = primaryText,
+            primaryText = primaryText,
+            secondaryText = secondaryText,
+            expandedText = expandedText,
+            tapOpensAllSchedule = true,
+            actions = actions
+        )
+    }
+
+    private fun formatScheduleTime(event: Event): String {
+        val zone = ZoneId.systemDefault()
+        val start = runCatching {
+            LocalDateTime.ofInstant(Instant.ofEpochSecond(event.startTS), zone)
+        }.getOrElse { return "" }
+        val end = runCatching {
+            LocalDateTime.ofInstant(Instant.ofEpochSecond(event.endTS), zone)
+        }.getOrElse { return "" }
+        val fmt = DateTimeFormatter.ofPattern("M/d HH:mm")
+        val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
+        val startStr = fmt.format(start)
+        val endStr = if (start.toLocalDate() == end.toLocalDate()) timeFmt.format(end) else fmt.format(end)
+        return "$startStr - $endStr"
     }
 }

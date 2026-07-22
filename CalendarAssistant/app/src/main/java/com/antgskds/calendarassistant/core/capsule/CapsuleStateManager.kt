@@ -55,6 +55,8 @@ class CapsuleStateManager(
 
         const val AGGREGATE_PICKUP_ID = "AGGREGATE_PICKUP"
         const val AGGREGATE_NOTIF_ID = 99999
+        // 聚合日程胶囊使用固定通知 id：全局仅此一个通知位
+        const val AGGREGATE_SCHEDULE_NOTIF_ID = 99998
 
         // 胶囊类型常量（值的事实源已迁至 data.state.CapsuleType，此处保留为别名向后兼容）
         const val TYPE_SCHEDULE = CapsuleType.SCHEDULE
@@ -547,28 +549,60 @@ class CapsuleStateManager(
         }
 
         val (pickupEntries, scheduleEntries) = activeEntries.partition { isPickupRule(it.event) }
-        // 已「移至随口记」的日程不再生成胶囊（FLAG_MOVED_TO_QUICK_MEMO，区别于已完成）
-        val filteredScheduleEntries = scheduleEntries.filter { !it.event.getIsMovedToQuickMemo() }
+        // 已「移至随口记」的日程不再生成胶囊（FLAG_MOVED_TO_QUICK_MEMO，区别于已完成）；
+        // 同时过滤掉无 id 的日程（聚合胶囊动作需依赖 eventId 精确作用）。
+        // 按开始时间升序排列：列表「按时间先后顺序」，[0] 即「时间最近的一条待办」。
+        val filteredScheduleEntries = scheduleEntries
+            .filter { !it.event.getIsMovedToQuickMemo() && it.event.id != null }
+            .sortedBy { it.event.startTS }
         val capsules = mutableListOf<CapsuleUiState.Active.CapsuleItem>()
 
-        filteredScheduleEntries.forEach { entry ->
-            val event = entry.event
-            val endDateTime = LocalDateTime.of(event.endDate, LocalTime.parse(event.endTime, TIME_FORMATTER))
-            val isExpired = now.isAfter(endDateTime)
-            val display = CapsuleMessageComposer.composeSchedule(context, event, isExpired, settings.liveNotificationTemplateMode)
-
-            capsules.add(createCapsuleItem(
-                id = entry.id,
-                notifId = entry.notifId,
-                type = TYPE_SCHEDULE,
-                eventType = resolveCapsuleEventType(event),
-                description = stripSourceImageMarkers(event.description),
-                color = event.color,
-                state = event.state,
-                startMillis = toMillis(event, event.startTime),
-                endMillis = toMillis(event, event.endTime),
-                display = display
-            ))
+        when {
+            filteredScheduleEntries.isEmpty() -> {
+                // 无待办日程胶囊
+            }
+            filteredScheduleEntries.size == 1 -> {
+                // 单条：完全复用原有单日程流体云样式与交互。
+                // 注意：notifId 仍用固定 AGGREGATE_SCHEDULE_NOTIF_ID（与聚合共用同一通知位），
+                // 使单条↔聚合切换时只是更新同一条通知（setOnlyAlertOnce 保证不重复震动）。
+                val entry = filteredScheduleEntries.first()
+                val event = entry.event
+                val endDateTime = LocalDateTime.of(event.endDate, LocalTime.parse(event.endTime, TIME_FORMATTER))
+                val isExpired = now.isAfter(endDateTime)
+                val display = CapsuleMessageComposer.composeSchedule(context, event, isExpired, settings.liveNotificationTemplateMode)
+                capsules.add(createCapsuleItem(
+                    id = entry.id,
+                    notifId = AGGREGATE_SCHEDULE_NOTIF_ID,
+                    type = TYPE_SCHEDULE,
+                    eventType = resolveCapsuleEventType(event),
+                    description = stripSourceImageMarkers(event.description),
+                    color = event.color,
+                    state = event.state,
+                    startMillis = toMillis(event, event.startTime),
+                    endMillis = toMillis(event, event.endTime),
+                    display = display
+                ))
+            }
+            else -> {
+                // 多条待办：聚合为单条胶囊，全程只占用一个通知位
+                val top = filteredScheduleEntries.first()
+                val events = filteredScheduleEntries.map { it.event }
+                val display = CapsuleMessageComposer.composeAggregateSchedule(context, events)
+                capsules.add(createCapsuleItem(
+                    // id 设为最近一条待办的 eventId，使胶囊动作（完成/移至随口记）经发布器兜底
+                    // 注入 EXTRA_EVENT_ID 后，精确作用于该条（接收器无需区分聚合/单条）。
+                    id = top.event.id!!.toString(),
+                    notifId = AGGREGATE_SCHEDULE_NOTIF_ID,
+                    type = TYPE_SCHEDULE,
+                    eventType = resolveCapsuleEventType(top.event),
+                    description = stripSourceImageMarkers(top.event.description),
+                    color = top.event.color,
+                    state = top.event.state,
+                    startMillis = toMillis(top.event, top.event.startTime),
+                    endMillis = toMillis(top.event, top.event.endTime),
+                    display = display
+                ))
+            }
         }
 
         val pickupEvents = pickupEntries.map { it.event }

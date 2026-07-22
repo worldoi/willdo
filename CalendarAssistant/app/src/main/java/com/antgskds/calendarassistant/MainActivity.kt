@@ -108,6 +108,9 @@ class MainActivity : ComponentActivity() {
     // 取件码时间戳
     private var pickupEventTimestamp = mutableStateOf(0L)
 
+    // 聚合日程胶囊点击：跳转「全部日程」页时间戳
+    private var allScheduleTimestamp = mutableStateOf(0L)
+
     // ViewModel 实例，供 onResume 使用
     private lateinit var mainViewModel: MainViewModel
 
@@ -147,6 +150,9 @@ class MainActivity : ComponentActivity() {
 
         if (intent.getBooleanExtra("openPickupList", false)) {
             pickupEventTimestamp.value = System.currentTimeMillis()
+        }
+        if (intent.getBooleanExtra(EXTRA_OPEN_ALL_SCHEDULES, false)) {
+            allScheduleTimestamp.value = System.currentTimeMillis()
         }
         requestRecordAudioPermissionIfNeeded(intent)
         consumeWidgetAction(intent)
@@ -268,6 +274,7 @@ class MainActivity : ComponentActivity() {
                 var lastWidgetActionNonce by rememberSaveable { mutableLongStateOf(0L) }
                 var lastQuickMemoDetailNonce by rememberSaveable { mutableLongStateOf(0L) }
                 var lastEventDialogNonce by rememberSaveable { mutableLongStateOf(0L) }
+                var lastAllScheduleTimestamp by rememberSaveable { mutableLongStateOf(0L) }
                 val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 val floatingActionCardBottomPadding = if (currentBackStackEntry?.destination?.route == AppRoutes.Home) {
                     IntegratedFloatingBarHeight + IntegratedFloatingBarBottomSpacing + bottomInset + 16.dp
@@ -309,6 +316,20 @@ class MainActivity : ComponentActivity() {
                     if (timestamp > 0L && timestamp != lastPickupEventTimestamp) {
                         selectedHomePageKey = HomeEntryKey.ALL
                         lastPickupEventTimestamp = timestamp
+                    }
+                }
+
+                LaunchedEffect(allScheduleTimestamp.value) {
+                    val timestamp = allScheduleTimestamp.value
+                    if (timestamp > 0L && timestamp != lastAllScheduleTimestamp) {
+                        selectedHomePageKey = HomeEntryKey.ALL
+                        lastAllScheduleTimestamp = timestamp
+                        if (currentBackStackEntry?.destination?.route != AppRoutes.Home) {
+                            navController.navigate(AppRoutes.Home) {
+                                launchSingleTop = true
+                                popUpTo(AppRoutes.Home) { inclusive = false }
+                            }
+                        }
                     }
                 }
 
@@ -626,6 +647,9 @@ class MainActivity : ComponentActivity() {
         if (intent.getBooleanExtra("openPickupList", false)) {
             pickupEventTimestamp.value = System.currentTimeMillis()
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_ALL_SCHEDULES, false)) {
+            allScheduleTimestamp.value = System.currentTimeMillis()
+        }
         requestRecordAudioPermissionIfNeeded(intent)
         consumeWidgetAction(intent)
         consumeQuickMemoDetailIntent(intent)
@@ -712,6 +736,7 @@ class MainActivity : ComponentActivity() {
         const val EXTRA_REQUEST_RECORD_AUDIO_PERMISSION = "request_record_audio_permission"
         const val EXTRA_OPEN_QUICK_MEMO_ID = "open_quick_memo_id"
         const val EXTRA_OPEN_EVENT_ID = "open_event_id"
+        const val EXTRA_OPEN_ALL_SCHEDULES = "open_all_schedules"
         private const val REQUEST_RECORD_AUDIO_PERMISSION = 2401
     }
 }
