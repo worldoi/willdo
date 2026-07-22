@@ -55,7 +55,7 @@ Will do 是一款面向日常学习与生活场景的智能日历助手。核心
 
 ## 基本信息
 
-- 当前版本：`2.2.0`（`versionCode=87`，以 `app/build.gradle.kts` 为准）
+- 当前版本：`2.2.7`（`versionCode=94`，以 `app/build.gradle.kts` 为准）
 - 最低支持：Android 13（API 33）
 - 目标平台：Android 16（API 36）
 

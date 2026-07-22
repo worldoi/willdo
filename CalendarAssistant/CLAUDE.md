@@ -1,7 +1,7 @@
 # CalendarAssistant（Will do）开发约定
 
 智能日历助手，Kotlin + Jetpack Compose，包名 `com.antgskds.calendarassistant`。
-版本以 `app/build.gradle.kts` 为准（当前 2.2.0 / versionCode 87 / minSdk 33），**不要采信 README 里的版本**。
+版本以 `app/build.gradle.kts` 为准（当前 2.2.7 / versionCode 94 / minSdk 33），**不要采信 README 里的版本**。
 
 ## 核心纪律：先注册，再开发
 
