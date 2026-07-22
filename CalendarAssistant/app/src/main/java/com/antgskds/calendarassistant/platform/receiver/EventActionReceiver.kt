@@ -22,6 +22,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.time.DateTimeFormatter
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 /**
  * 事件动作接收器：处理通知上的「完成」「签到」按钮。
@@ -113,7 +117,7 @@ class EventActionReceiver : BroadcastReceiver() {
                 }
             }
             ACTION_MOVE_TO_QUICK_MEMO -> {
-                handleMoveToQuickMemo(context, intent, app)
+                handleMoveToQuickMemo(context, intent, app, scope)
             }
             ACTION_COMPLETE, ACTION_COMPLETE_SCHEDULE, ACTION_CHECKIN -> {
                 val eventIdStr = intent.getStringExtra(EXTRA_EVENT_ID) ?: run {
@@ -192,7 +196,7 @@ class EventActionReceiver : BroadcastReceiver() {
      * 并清除该条系统提醒通知（触发折叠分组更新）。不标记日程为「已完成」，
      * 默认不跳转 APP，仅以轻量 Toast 提示结果。
      */
-    private fun handleMoveToQuickMemo(context: Context, intent: Intent, app: App) {
+    private fun handleMoveToQuickMemo(context: Context, intent: Intent, app: App, scope: CoroutineScope) {
         val eventIdStr = intent.getStringExtra(EXTRA_EVENT_ID) ?: run {
             Log.w(TAG, "ignore move-to-quick-memo: missing event id")
             return
@@ -238,8 +242,16 @@ class EventActionReceiver : BroadcastReceiver() {
     }
 
     private fun buildTimeTextForMemo(event: com.antgskds.calendarassistant.calendar.models.Event): String {
-        val start = event.startTime.takeIf { it.isNotBlank() }.orEmpty()
-        val end = event.endTime.takeIf { it.isNotBlank() }.orEmpty()
+        val fmt = DateTimeFormatter.ofPattern("yyyy年M月d日 HH:mm")
+        val zone = ZoneId.systemDefault()
+        val start = runCatching {
+            fmt.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(event.startTS * 1000L), zone))
+        }.getOrElse { "" }
+        // 永久日程（endTS ≈ startTS + 100年）等超大跨度只显示开始时间
+        val spanYears = (event.endTS - event.startTS) / (365L * 24 * 3600)
+        val end = if (spanYears > 10L) "" else runCatching {
+            fmt.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(event.endTS * 1000L), zone))
+        }.getOrElse { "" }
         return when {
             start.isNotBlank() && end.isNotBlank() -> "$start - $end"
             start.isNotBlank() -> start
