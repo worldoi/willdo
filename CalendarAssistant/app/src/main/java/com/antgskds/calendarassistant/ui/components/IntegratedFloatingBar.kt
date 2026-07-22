@@ -336,22 +336,21 @@ private fun ActionExpandPanel(
                 .padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionMenuItem(icon = Icons.Default.Search, label = "搜索", onClick = onSearchClick)
-            ActionMenuItem(icon = Icons.Default.Image, label = "图片", onClick = onImageClick)
-            ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", onClick = onEditClick)
-            ActionMenuItem(icon = Icons.Default.Close, label = "关闭", onClick = onCloseClick)
+            ActionMenuItem(icon = Icons.Default.Search, label = "搜索", onClick = onSearchClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Image, label = "图片", onClick = onImageClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", onClick = onEditClick, modifier = Modifier.weight(1f))
+            ActionMenuItem(icon = Icons.Default.Close, label = "关闭", onClick = onCloseClick, modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val haptics = rememberAppHaptics()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
-        modifier = Modifier
-            .weight(1f)
+        modifier = modifier
             .fillMaxHeight()
             .clickable { haptics.click(); onClick() }
             .padding(vertical = 8.dp)
