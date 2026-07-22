@@ -40,7 +40,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -330,7 +330,12 @@ private fun ActionExpandPanel(
             .fillMaxWidth()
             .padding(start = 8.dp, end = 8.dp, bottom = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(vertical = 6.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             ActionMenuItem(icon = Icons.Default.Search, label = "搜索", onClick = onSearchClick)
             ActionMenuItem(icon = Icons.Default.Image, label = "图片", onClick = onImageClick)
             ActionMenuItem(icon = Icons.Default.Edit, label = "编辑", onClick = onEditClick)
@@ -342,12 +347,14 @@ private fun ActionExpandPanel(
 @Composable
 private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit) {
     val haptics = rememberAppHaptics()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
         modifier = Modifier
-            .fillMaxWidth()
+            .weight(1f)
+            .fillMaxHeight()
             .clickable { haptics.click(); onClick() }
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(vertical = 8.dp)
     ) {
         Icon(
             imageVector = icon,
@@ -355,7 +362,7 @@ private fun ActionMenuItem(icon: ImageVector, label: String, onClick: () -> Unit
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
