@@ -68,6 +68,8 @@ class NotificationCenter(
         private const val TAG = "NotificationCenter"
         private const val GROUP_CREATED_EVENTS = "calendar_assistant_created_events"
         private const val GROUP_QUICK_MEMO_SUGGESTIONS = "calendar_assistant_quick_memo_suggestions"
+        /** 日程待办提醒通知统一归入此分组，实现通知栏折叠。 */
+        private const val GROUP_SCHEDULE_REMINDERS = "calendar_assistant_schedule_reminders"
         private val RESULT_TIME_FORMATTER = DateTimeFormatter.ofPattern("MM-dd HH:mm")
         private const val TYPE_RECOGNITION_RESULT = 9
         private const val EVENT_TYPE_RECOGNITION_RESULT = "recognition_result"
@@ -99,6 +101,17 @@ class NotificationCenter(
     private val capsuleProvider: ICapsuleProvider by lazy {
         NativeCapsuleProvider()
     }
+
+    // —— 日程待办提醒折叠分组（Scheme 1）——
+    // 登记表：notificationId -> 条目，LinkedHashMap 保留插入顺序，「最新1条」取末尾。
+    private val scheduleReminderEntries = LinkedHashMap<Int, ScheduleReminderEntry>()
+
+    private data class ScheduleReminderEntry(
+        val notificationId: Int,
+        val eventId: String,
+        val title: String,
+        val subText: String
+    )
 
     override suspend fun create(request: NotificationRequest): NotificationResult {
         return upsertApiRequest(request)
@@ -723,6 +736,8 @@ class NotificationCenter(
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setGroup(GROUP_SCHEDULE_REMINDERS)
+            .setDeleteIntent(scheduleReminderDeleteIntent(notificationId))
 
         if (event.color.hashCode() != 0) {
             builder.setColor(event.color.hashCode())
@@ -748,7 +763,21 @@ class NotificationCenter(
             Log.e(TAG, "检查事件状态失败: ${e.message}")
         }
 
-        manager.notify(notificationId, builder.build())
+        // Scheme 2：追加「移至随口记」动作按钮，与「已完成」按钮风格完全统一
+        builder.addAction(
+            R.drawable.ic_notification_small,
+            "移至随口记",
+            moveToQuickMemoAction(event.id?.toString() ?: event.title, notificationId)
+        )
+
+        val notification = builder.build()
+        manager.notify(notificationId, notification)
+        registerScheduleReminder(
+            notificationId,
+            event.id?.toString() ?: event.title,
+            EventTimelinePresenter.present(appContext, event).title,
+            contentText
+        )
     }
 
     fun showPickupInitialNotification(event: Event) {
@@ -882,6 +911,111 @@ class NotificationCenter(
         manager.cancel(notificationId)
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // 日程待办提醒折叠分组（Scheme 1）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /**
+     * 登记一条活动提醒通知。由 [showStandardNotificationForEvent] / [showStandardNotification] 在 notify 后调用，
+     * 随后重建汇总通知。线程安全：所有访问都在 [scheduleReminderEntries] 上同步。
+     */
+    private fun registerScheduleReminder(notificationId: Int, eventId: String, title: String, subText: String) {
+        synchronized(scheduleReminderEntries) {
+            scheduleReminderEntries[notificationId] = ScheduleReminderEntry(notificationId, eventId, title, subText)
+        }
+        rebuildScheduleReminderSummary()
+    }
+
+    /**
+     * 某条提醒通知被移除（用户滑动或代码 cancel）时回调，更新折叠组计数与预览。
+     * 由 [com.antgskds.calendarassistant.platform.receiver.ScheduleReminderDeleteReceiver] 触发。
+     */
+    fun onScheduleReminderDismissed(notificationId: Int) {
+        var removed = false
+        synchronized(scheduleReminderEntries) {
+            removed = scheduleReminderEntries.remove(notificationId) != null
+        }
+        if (removed) rebuildScheduleReminderSummary()
+    }
+
+    /**
+     * 重建折叠组汇总通知：
+     * - 无活动提醒 → 取消汇总；
+     * - 否则显示「X条待办日程」+ 最新1条（标题 · 时间）预览，汇总本身静音、低优先级，不重复震动/弹窗。
+     * 子通知仍保持 HIGH + 震动，分组不改变原有提醒的优先级与震动逻辑。
+     */
+    private fun rebuildScheduleReminderSummary() {
+        val manager = appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val entries = synchronized(scheduleReminderEntries) { ArrayList(scheduleReminderEntries.values) }
+        if (entries.isEmpty()) {
+            manager.cancel(NotificationIds.SCHEDULE_REMINDER_GROUP)
+            return
+        }
+
+        val count = entries.size
+        val latest = entries.last()
+        val summaryTitle = "$count 条待办日程"
+        val summaryText = "${latest.title}  ${latest.subText}".trim()
+
+        val tapIntent = Intent(appContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            appContext,
+            NotificationIds.SCHEDULE_REMINDER_GROUP,
+            tapIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val summary = NotificationCompat.Builder(appContext, App.CHANNEL_ID_POPUP)
+            .setSmallIcon(R.drawable.ic_notification_small)
+            .setContentTitle(summaryTitle)
+            .setContentText(summaryText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(summaryText))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setGroup(GROUP_SCHEDULE_REMINDERS)
+            .setGroupSummary(true)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setAutoCancel(false)
+            .setContentIntent(pendingIntent)
+            .build()
+        manager.notify(NotificationIds.SCHEDULE_REMINDER_GROUP, summary)
+    }
+
+    /**
+     * 为单条提醒通知构造 deleteIntent：通知被移除时系统回调，用于更新折叠组。
+     */
+    private fun scheduleReminderDeleteIntent(notificationId: Int): PendingIntent {
+        val intent = Intent(appContext, com.antgskds.calendarassistant.platform.receiver.ScheduleReminderDeleteReceiver::class.java).apply {
+            action = com.antgskds.calendarassistant.platform.receiver.ScheduleReminderDeleteReceiver.ACTION
+            putExtra(com.antgskds.calendarassistant.platform.receiver.ScheduleReminderDeleteReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+        }
+        return PendingIntent.getBroadcast(
+            appContext,
+            notificationId xor 0x5B1E,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+    /**
+     * 构造「移至随口记」动作按钮的 PendingIntent（Scheme 2）。
+     */
+    private fun moveToQuickMemoAction(eventId: String, notificationId: Int): PendingIntent {
+        val intent = Intent(appContext, com.antgskds.calendarassistant.platform.receiver.EventActionReceiver::class.java).apply {
+            action = com.antgskds.calendarassistant.platform.receiver.EventActionReceiver.ACTION_MOVE_TO_QUICK_MEMO
+            putExtra(com.antgskds.calendarassistant.platform.receiver.EventActionReceiver.EXTRA_EVENT_ID, eventId)
+        }
+        return PendingIntent.getBroadcast(
+            appContext,
+            notificationId + 200,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
+
+
     fun showStandardNotification(
         eventId: String,
         title: String,
@@ -944,6 +1078,8 @@ class NotificationCenter(
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setGroup(GROUP_SCHEDULE_REMINDERS)
+            .setDeleteIntent(scheduleReminderDeleteIntent(notificationId))
 
         if (eventColor != 0) {
             builder.setColor(eventColor)
@@ -968,7 +1104,16 @@ class NotificationCenter(
             Log.e(TAG, "检查事件状态失败: ${e.message}")
         }
 
-        manager.notify(notificationId, builder.build())
+        // Scheme 2：追加「移至随口记」动作按钮，与「已完成」按钮风格完全统一
+        builder.addAction(
+            R.drawable.ic_notification_small,
+            "移至随口记",
+            moveToQuickMemoAction(eventId, notificationId)
+        )
+
+        val notification = builder.build()
+        manager.notify(notificationId, notification)
+        registerScheduleReminder(notificationId, eventId, displayTitle, contentText)
     }
 
     fun showPlainNotification(

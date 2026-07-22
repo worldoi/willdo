@@ -334,6 +334,11 @@
             </intent-filter>
         </receiver>
 
+        <!-- 日程提醒通知被移除时回调，用于更新折叠分组汇总 -->
+        <receiver
+            android:name=".platform.receiver.ScheduleReminderDeleteReceiver"
+            android:exported="false" />
+
         <!-- 短信自动解析取件码 -->
         <receiver
             android:name=".platform.receiver.SmsReceiver"

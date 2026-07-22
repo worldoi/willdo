@@ -4,12 +4,16 @@ import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
+import android.widget.Toast
 import com.antgskds.calendarassistant.App
 import com.antgskds.calendarassistant.core.ai.convertDraftToEvent
 import com.antgskds.calendarassistant.core.capsule.CapsuleStateManager
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoSuggestionCodec
 import com.antgskds.calendarassistant.core.quickmemo.QuickMemoSuggestionStatus
+import com.antgskds.calendarassistant.core.util.stripSourceImageMarkers
 import com.antgskds.calendarassistant.platform.notification.alarmlegacy.NotificationIds
 import com.antgskds.calendarassistant.data.model.ScheduleDisplayItem.ActionTarget
 import com.antgskds.calendarassistant.calendar.models.EventTags
@@ -28,6 +32,7 @@ class EventActionReceiver : BroadcastReceiver() {
         const val ACTION_COMPLETE = "com.antgskds.calendarassistant.action.COMPLETE"
         const val ACTION_COMPLETE_SCHEDULE = "com.antgskds.calendarassistant.action.COMPLETE_SCHEDULE"
         const val ACTION_CHECKIN = "com.antgskds.calendarassistant.action.CHECKIN"
+        const val ACTION_MOVE_TO_QUICK_MEMO = "com.antgskds.calendarassistant.action.MOVE_TO_QUICK_MEMO"
         const val ACTION_CREATE_QUICK_MEMO_SUGGESTION = "com.antgskds.calendarassistant.action.CREATE_QUICK_MEMO_SUGGESTION"
         const val ACTION_CLEAR_TEXT_QUICK_MEMO = "com.antgskds.calendarassistant.action.CLEAR_TEXT_QUICK_MEMO"
         const val ACTION_DEBUG_PRIMARY = "com.antgskds.calendarassistant.action.DEBUG_PRIMARY"
@@ -107,6 +112,9 @@ class EventActionReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            ACTION_MOVE_TO_QUICK_MEMO -> {
+                handleMoveToQuickMemo(context, intent, app)
+            }
             ACTION_COMPLETE, ACTION_COMPLETE_SCHEDULE, ACTION_CHECKIN -> {
                 val eventIdStr = intent.getStringExtra(EXTRA_EVENT_ID) ?: run {
                     Log.w(TAG, "ignore event action: missing event id action=${intent.action}")
@@ -155,6 +163,16 @@ class EventActionReceiver : BroadcastReceiver() {
                     } catch (t: Throwable) {
                         Log.e(TAG, "event action failed action=${intent.action} eventId=$eventIdStr", t)
                     } finally {
+                        // 点击「已完成/签到」后移除对应提醒通知，并触发折叠分组更新
+                        // （聚合取件走独立通知，不在此取消）
+                        if (eventIdStr != CapsuleStateManager.AGGREGATE_PICKUP_ID) {
+                            val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                            if (eventIdStr.startsWith(RECURRING_INSTANCE_PREFIX)) {
+                                mgr.cancel(NotificationIds.standardReminder(eventIdStr))
+                            } else {
+                                eventIdStr.toLongOrNull()?.let { mgr.cancel(NotificationIds.standardReminder(it)) }
+                            }
+                        }
                         pendingResult.finish()
                     }
                 }
@@ -167,5 +185,71 @@ class EventActionReceiver : BroadcastReceiver() {
         val parentId = parts.getOrNull(1)?.toLongOrNull() ?: return null
         val occurrenceTs = parts.getOrNull(2)?.toLongOrNull() ?: return null
         return ActionTarget.RecurringOccurrence(parentId, occurrenceTs)
+    }
+
+    /**
+     * Scheme 2：将单条日程的完整内容（标题 / 时间 / 备注）迁移到随口记模块，
+     * 并清除该条系统提醒通知（触发折叠分组更新）。不标记日程为「已完成」，
+     * 默认不跳转 APP，仅以轻量 Toast 提示结果。
+     */
+    private fun handleMoveToQuickMemo(context: Context, intent: Intent, app: App) {
+        val eventIdStr = intent.getStringExtra(EXTRA_EVENT_ID) ?: run {
+            Log.w(TAG, "ignore move-to-quick-memo: missing event id")
+            return
+        }
+        // 兼容普通事件（数字 id）与重复实例（rec:parentId:ts）两种格式
+        val parentId = if (eventIdStr.startsWith(RECURRING_INSTANCE_PREFIX)) {
+            eventIdStr.split(":").getOrNull(1)?.toLongOrNull()
+        } else {
+            eventIdStr.toLongOrNull()
+        }
+        if (parentId == null) {
+            Log.w(TAG, "ignore move-to-quick-memo: invalid event id=$eventIdStr")
+            return
+        }
+        val pendingResult = goAsync()
+        scope.launch {
+            try {
+                val event = app.scheduleCenter.events.value.find { it.id == parentId }
+                if (event == null) {
+                    showToast(context, "日程不存在")
+                    return@launch
+                }
+                val timeText = buildTimeTextForMemo(event)
+                val memoText = buildString {
+                    append(event.title.ifBlank { "未命名日程" })
+                    if (timeText.isNotBlank()) append("\n$timeText")
+                    val desc = event.description?.let { stripSourceImageMarkers(it) }?.takeIf { it.isNotBlank() }
+                    if (desc != null) append("\n$desc")
+                }
+                app.quickMemoCenter.createTextMemo(memoText, asTodo = true)
+                // 清除该条通知（不标记已完成），deleteIntent 会更新折叠分组
+                val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                manager.cancel(NotificationIds.standardReminder(eventIdStr))
+                showToast(context, "已移至随口记")
+                Log.d(TAG, "moved event to quick memo id=$eventIdStr parentId=$parentId")
+            } catch (t: Throwable) {
+                Log.e(TAG, "move to quick memo failed id=$eventIdStr", t)
+                showToast(context, "迁移失败")
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    private fun buildTimeTextForMemo(event: com.antgskds.calendarassistant.calendar.models.Event): String {
+        val start = event.startTime.takeIf { it.isNotBlank() }.orEmpty()
+        val end = event.endTime.takeIf { it.isNotBlank() }.orEmpty()
+        return when {
+            start.isNotBlank() && end.isNotBlank() -> "$start - $end"
+            start.isNotBlank() -> start
+            else -> ""
+        }
+    }
+
+    private fun showToast(context: Context, text: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context.applicationContext, text, Toast.LENGTH_SHORT).show()
+        }
     }
 }
