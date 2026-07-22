@@ -19,6 +19,7 @@ interface SettingsTransformApi {
         autoArchive: Boolean? = null,
         recognitionMode: Int? = null,
         defaultEventDurationMinutes: Int? = null,
+        defaultNoEndTime: Boolean? = null,
         useMultimodalAi: Boolean? = null,
         disableThinking: Boolean? = null,
         localSemanticEnabled: Boolean? = null,

@@ -284,7 +284,7 @@ fun ScheduleSettingsPage(
                         EventDurationSettingItem(
                             title = "日程默认持续时间",
                             subtitle = "所有识别日程都按该时长生成结束时间",
-                            durationMinutes = settings.defaultEventDurationMinutes,
+                            durationMinutes = if (settings.defaultNoEndTime) -2 else settings.defaultEventDurationMinutes,
                             onClick = { showEventDurationPicker = true },
                             cardTitleStyle = cardTitleStyle,
                             cardSubtitleStyle = cardSubtitleStyle,
@@ -311,10 +311,18 @@ fun ScheduleSettingsPage(
 
             if (showEventDurationPicker) {
                 EventDurationPickerDialog(
-                    selectedDuration = settings.defaultEventDurationMinutes,
+                    selectedDuration = if (settings.defaultNoEndTime) -2 else settings.defaultEventDurationMinutes,
                     onDismiss = { showEventDurationPicker = false },
                     onConfirm = { minutes ->
-                        viewModel.updatePreference(defaultEventDurationMinutes = minutes)
+                        if (minutes == -2) {
+                            // 选中「无结束时间（永久）」：后续新建日程默认开启永久模式
+                            viewModel.updatePreference(defaultNoEndTime = true)
+                        } else {
+                            viewModel.updatePreference(
+                                defaultEventDurationMinutes = minutes,
+                                defaultNoEndTime = false
+                            )
+                        }
                         showEventDurationPicker = false
                     }
                 )

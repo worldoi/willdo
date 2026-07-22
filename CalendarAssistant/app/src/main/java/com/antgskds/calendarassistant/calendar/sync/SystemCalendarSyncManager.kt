@@ -19,6 +19,7 @@ import com.antgskds.calendarassistant.calendar.data.EventsDatabase
 import com.antgskds.calendarassistant.calendar.helpers.CALDAV
 import com.antgskds.calendarassistant.calendar.helpers.CalendarConfig
 import com.antgskds.calendarassistant.calendar.helpers.FLAG_ALL_DAY
+import com.antgskds.calendarassistant.calendar.helpers.PERMANENT_END_OFFSET_SEC
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_EMAIL
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_NOTIFICATION
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_OFF
@@ -708,9 +709,17 @@ class SystemCalendarSyncManager(private val context: Context) {
             put(Events.DTSTART, event.startTS * 1000L)
             put(Events.EVENT_TIMEZONE, event.getTimeZoneString())
 
+            // 永久日程（FLAG_NO_END_TIME）：系统日历对单次事件要求 DTEND 非空，
+            // 这里把结束时间统一写成「开始时间 + 100 年」的远未来值，兼容无结束时间的长期日程。
+            val effectiveEndTs = if (event.getIsNoEndTime()) {
+                event.startTS + PERMANENT_END_OFFSET_SEC
+            } else {
+                event.endTS
+            }
+
             // CalendarContract 要求重复日程使用 DURATION 而非 DTEND
             if (event.rrule.isNotBlank() && event.parentId == 0L) {
-                val durationSec = event.endTS - event.startTS
+                val durationSec = effectiveEndTs - event.startTS
                 val durationCode = if (event.getIsAllDay()) {
                     val days = maxOf(1L, durationSec / 86400L)
                     "P${days}D"
@@ -720,7 +729,7 @@ class SystemCalendarSyncManager(private val context: Context) {
                 put(Events.DURATION, durationCode)
                 putNull(Events.DTEND)
             } else {
-                put(Events.DTEND, event.endTS * 1000L)
+                put(Events.DTEND, effectiveEndTs * 1000L)
                 putNull(Events.DURATION)
             }
 

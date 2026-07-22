@@ -87,6 +87,7 @@ object ScheduleDisplayHelper {
             state = event.state,
             isAllDay = event.getIsAllDay(),
             isRecurringInstance = event.parentId != 0L,
+            isPermanent = event.getIsNoEndTime(),
             timeZone = event.getTimeZoneString(),
             action = ActionTarget.Single(event.id!!)
         )
@@ -141,6 +142,7 @@ object ScheduleDisplayHelper {
                                 state = parent.state,
                                 isAllDay = parent.getIsAllDay(),
                                 isRecurringInstance = true,
+                                isPermanent = parent.getIsNoEndTime(),
                                 timeZone = parent.getTimeZoneString(),
                                 action = ActionTarget.RecurringOccurrence(
                                     parentId = parent.id!!,

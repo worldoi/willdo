@@ -231,7 +231,10 @@ fun SwipeableEventItem(
 
                         // 时间
                         val isSingleDay = item.startDate == item.endDate
-                        val timeDisplayText = if (isSingleDay) {
+                        val timeDisplayText = if (item.isPermanent) {
+                            // 无结束时间的永久日程：仅展示开始时间
+                            item.startTime
+                        } else if (isSingleDay) {
                             "${item.startTime} - ${item.endTime}"
                         } else {
                             val crossYear = item.startDate.year != item.endDate.year
@@ -247,6 +250,14 @@ fun SwipeableEventItem(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (isExpired) Color.Gray else MaterialTheme.colorScheme.primary
                             )
+                            if (item.isPermanent) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    "长期有效",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                             if (isExpired) {
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("(已过期)", style = MaterialTheme.typography.labelSmall,

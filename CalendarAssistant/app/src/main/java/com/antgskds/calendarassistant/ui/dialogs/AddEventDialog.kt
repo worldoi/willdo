@@ -47,6 +47,7 @@ import com.antgskds.calendarassistant.core.util.stripSourceImageMarkers
 import com.antgskds.calendarassistant.data.model.EditDraft
 import com.antgskds.calendarassistant.data.model.EventPatch
 import com.antgskds.calendarassistant.data.model.MySettings
+import com.antgskds.calendarassistant.calendar.helpers.PERMANENT_END_OFFSET_SEC
 import com.antgskds.calendarassistant.ui.components.WheelDatePickerDialog
 import com.antgskds.calendarassistant.ui.components.WheelReminderPickerDialog
 import com.antgskds.calendarassistant.ui.components.WheelTimePickerDialog
@@ -289,6 +290,8 @@ fun AddEventDialog(
     val structuredFieldValues = remember(draftKey) { mutableStateListOf<String>() }
     var autoDurationMinutes by remember { mutableStateOf(initialAutoDurationMinutes) }
     var isEndTimeManuallySet by remember { mutableStateOf(false) }
+    // 无结束时间的永久日程：编辑已有日程时取草稿，新建时取默认设置
+    var noEndTime by remember(draftKey) { mutableStateOf(editDraft?.noEndTime ?: settings.defaultNoEndTime) }
     val eventTypePagerState = rememberPagerState(pageCount = { DIALOG_EVENT_TYPE_PAGES.size })
     val activeStructuredSpec = structuredEditingTag?.let { eventTypeSpecFor(it) }
     val isChildDialogVisible = showStartDatePicker || showEndDatePicker ||
@@ -448,10 +451,25 @@ fun AddEventDialog(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("终", style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.width(8.dp))
-                    Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { haptics.click(); showEndDatePicker = true }, modifier = Modifier.weight(1.5f)) { Text(endDate.toString(), style = MaterialTheme.typography.bodyMedium) }
-                        OutlinedButton(onClick = { haptics.click(); showEndTimePicker = true }, modifier = Modifier.weight(1f)) { Text(endTime, style = MaterialTheme.typography.bodyMedium) }
+                    if (noEndTime) {
+                        Text(
+                            "无结束时间（永久）",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { haptics.click(); showEndDatePicker = true }, modifier = Modifier.weight(1.5f)) { Text(endDate.toString(), style = MaterialTheme.typography.bodyMedium) }
+                            OutlinedButton(onClick = { haptics.click(); showEndTimePicker = true }, modifier = Modifier.weight(1f)) { Text(endTime, style = MaterialTheme.typography.bodyMedium) }
+                        }
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Switch(
+                        checked = noEndTime,
+                        onCheckedChange = { haptics.click(); noEndTime = it },
+                        modifier = Modifier.height(24.dp)
+                    )
                 }
 
                 FlowRow(
@@ -509,24 +527,34 @@ fun AddEventDialog(
                             return@Button
                         }
                         if (title.isNotBlank()) {
-                            val finalStart = parseDateTimeValue(startDate, startTime, timeFormatter)
-                            val finalEnd = parseDateTimeValue(endDate, endTime, timeFormatter)
-
-                            if (finalStart == null || finalEnd == null) {
-                                haptics.error()
-                                onShowMessage("时间格式无效，请重新选择")
-                                return@Button
-                            }
-
-                            if (!finalEnd.isAfter(finalStart)) {
-                                haptics.error()
-                                onShowMessage("结束时间必须晚于开始时间")
-                                return@Button
-                            }
-
                             val zone = java.time.ZoneId.systemDefault()
+                            val finalStart = parseDateTimeValue(startDate, startTime, timeFormatter)
+                            if (finalStart == null) {
+                                haptics.error()
+                                onShowMessage("开始时间格式无效，请重新选择")
+                                return@Button
+                            }
                             val startEpoch = finalStart.atZone(zone).toEpochSecond()
-                            val endEpoch = finalEnd.atZone(zone).toEpochSecond()
+
+                            val endEpoch = if (noEndTime) {
+                                // 无结束时间的永久日程：结束时间用「开始时间 + 100 年」远未来值，
+                                // 既不会被归档判断误归档，也能在时间窗查询中正常出现。
+                                startEpoch + PERMANENT_END_OFFSET_SEC
+                            } else {
+                                val finalEnd = parseDateTimeValue(endDate, endTime, timeFormatter)
+                                if (finalEnd == null) {
+                                    haptics.error()
+                                    onShowMessage("结束时间格式无效，请重新选择")
+                                    return@Button
+                                }
+                                if (!finalEnd.isAfter(finalStart)) {
+                                    haptics.error()
+                                    onShowMessage("结束时间必须晚于开始时间")
+                                    return@Button
+                                }
+                                finalEnd.atZone(zone).toEpochSecond()
+                            }
+
                             val reminderList = reminders.toList()
                             val nextColor = if (eventColors.isNotEmpty()) eventColors[currentEventsCount % eventColors.size] else Color.Gray
                             val patch = EventPatch(
@@ -541,6 +569,7 @@ fun AddEventDialog(
                                 reminder1Minutes = reminderList.getOrElse(0) { -1 },
                                 reminder2Minutes = reminderList.getOrElse(1) { -1 },
                                 reminder3Minutes = reminderList.getOrElse(2) { -1 },
+                                noEndTime = noEndTime,
                                 pendingAttachmentKey = pendingAttachmentKey,
                                 pendingAttachmentUris = emptyList()
                             )

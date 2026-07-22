@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -39,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.antgskds.calendarassistant.BuildConfig
 import com.antgskds.calendarassistant.data.model.RemoteAppUpdateSection
 import com.antgskds.calendarassistant.data.model.RemoteAppVersion
 import com.antgskds.calendarassistant.ui.components.AppCard
@@ -92,31 +94,128 @@ fun AppUpdatePage(
             }
         }
 
-        val versions = updateState.info?.versions.orEmpty()
-        if (versions.isEmpty()) {
-            AppCard(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        // 当前版本卡片：始终展示，未配置更新源或已是最新时即为页面主体
+        AppCard(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(if (uiSize >= 3) 20.dp else 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = "当前版本",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = BuildConfig.VERSION_NAME,
+                        style = versionTitleStyle,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                val statusText = when {
+                    updateState.isChecking -> "检查中"
+                    updateState.hasUpdate -> "有新版本"
+                    else -> "已是最新"
+                }
+                val statusColor = if (updateState.hasUpdate) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
                 Text(
-                    text = updateState.errorMessage ?: "暂无更新日志",
-                    style = bodyStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(if (uiSize >= 3) 20.dp else 16.dp)
+                    text = statusText,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = statusColor
                 )
             }
-        } else {
-            versions.forEachIndexed { index, version ->
-                AppVersionCard(
-                    version = version,
-                    isLatest = index == 0,
-                    defaultExpanded = index == 0,
-                    titleStyle = versionTitleStyle,
-                    sectionTitleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    bodyStyle = bodyStyle,
-                    onDownload = { url -> uriHandler.openUri(url) }
-                )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        val versions = updateState.info?.versions.orEmpty()
+        when {
+            updateState.isChecking -> {
+                AppCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(if (uiSize >= 3) 20.dp else 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Text(
+                            text = "正在检查更新…",
+                            style = bodyStyle,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            updateState.hasUpdate -> {
+                versions.forEachIndexed { index, version ->
+                    AppVersionCard(
+                        version = version,
+                        isLatest = index == 0,
+                        defaultExpanded = index == 0,
+                        titleStyle = versionTitleStyle,
+                        sectionTitleStyle = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        bodyStyle = bodyStyle,
+                        onDownload = { url -> uriHandler.openUri(url) }
+                    )
+                }
+            }
+            updateState.errorMessage != null -> {
+                AppCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                ) {
+                    Text(
+                        text = updateState.errorMessage ?: "检查失败",
+                        style = bodyStyle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(if (uiSize >= 3) 20.dp else 16.dp)
+                    )
+                }
+            }
+            else -> {
+                AppCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(if (uiSize >= 3) 20.dp else 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "已是最新版本",
+                            style = bodyStyle,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
         }
 

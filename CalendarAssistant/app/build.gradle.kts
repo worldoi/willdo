@@ -59,10 +59,17 @@ android {
             "PROMPT_UPDATE_URL",
             "\"${escapeBuildConfigString(localProperty("PROMPT_UPDATE_URL"))}\""
         )
+        // 软件更新源：默认指向用户自有 Git 仓库的 Releases API。
+        // 占位符格式为 https://api.github.com/repos/<用户名>/<仓库名>/releases/latest
+        // 如需自托管或 Gitee，替换为对应 Releases API 地址即可（Gitee 形如
+        // https://gitee.com/api/v5/repos/<用户名>/<仓库名>/releases/latest）。
+        val appUpdateUrl = localProperty("APP_UPDATE_URL").ifBlank {
+            "https://api.github.com/repos/你的用户名/你的仓库名/releases/latest"
+        }
         buildConfigField(
             "String",
             "APP_UPDATE_URL",
-            "\"${escapeBuildConfigString(localProperty("APP_UPDATE_URL"))}\""
+            "\"${escapeBuildConfigString(appUpdateUrl)}\""
         )
     }
 

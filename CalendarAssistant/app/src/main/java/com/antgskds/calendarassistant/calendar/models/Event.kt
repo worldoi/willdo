@@ -6,6 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.antgskds.calendarassistant.calendar.helpers.CALDAV
 import com.antgskds.calendarassistant.calendar.helpers.FLAG_ALL_DAY
+import com.antgskds.calendarassistant.calendar.helpers.FLAG_NO_END_TIME
 import com.antgskds.calendarassistant.calendar.helpers.REGULAR_EVENT_TYPE_ID
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_NOTIFICATION
 import com.antgskds.calendarassistant.calendar.helpers.REMINDER_OFF
@@ -48,6 +49,11 @@ data class Event(
     @ColumnInfo(name = "code_qr_payload") var codeQrPayload: String = ""
 ) {
     fun getIsAllDay(): Boolean = flags and FLAG_ALL_DAY != 0
+
+    fun getIsNoEndTime(): Boolean = flags and FLAG_NO_END_TIME != 0
+    fun setIsNoEndTime(value: Boolean) {
+        flags = if (value) flags or FLAG_NO_END_TIME else flags and FLAG_NO_END_TIME.inv()
+    }
 
     fun getReminders(): List<Reminder> = listOf(
         Reminder(reminder1Minutes, reminder1Type),

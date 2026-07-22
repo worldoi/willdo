@@ -305,8 +305,8 @@ class StoreRootNode(context: Context) {
         var count = 0
         events.forEach { event ->
             val id = event.id ?: return@forEach
-            // 只归档非重复母体、已过期且未归档的事件
-            if (event.archivedAt == null && event.endTS < beforeTs && !event.isRecurring) {
+            // 只归档非重复母体、已过期且未归档的事件；无结束时间的永久日程永不归档
+            if (event.archivedAt == null && !event.getIsNoEndTime() && event.endTS < beforeTs && !event.isRecurring) {
                 localNode.archiveEvent(id, now)
                 count++
             }

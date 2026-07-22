@@ -344,7 +344,8 @@ private val EVENT_DURATION_OPTIONS = listOf(
     EventDurationOption(180, "3小时"),
     EventDurationOption(360, "6小时"),
     EventDurationOption(1440, "24小时"),
-    EventDurationOption(-1, "今天结束")
+    EventDurationOption(-1, "今天结束"),
+    EventDurationOption(-2, "无结束时间（永久）")
 )
 
 private fun formatEventDuration(minutes: Int): String {

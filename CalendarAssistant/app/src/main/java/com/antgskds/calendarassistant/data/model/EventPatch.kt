@@ -20,6 +20,7 @@ data class EventPatch(
     val reminder1Minutes: Int = -1,
     val reminder2Minutes: Int = -1,
     val reminder3Minutes: Int = -1,
+    val noEndTime: Boolean = false,  // 无结束时间的永久日程
     val pendingAttachmentKey: String = "",
     val pendingAttachmentUris: List<Uri> = emptyList()
 )

@@ -115,6 +115,7 @@ data class MySettings(
     val tempEventsUseRecognitionTime: Boolean = true, // 旧版默认为 true
     val recognitionMode: Int = RecognitionMode.AI_ONLY,
     val defaultEventDurationMinutes: Int = 60,
+    val defaultNoEndTime: Boolean = false, // 新建日程默认开启「无结束时间（永久）」
     val eventColorPaletteHex: List<String> = DEFAULT_EVENT_COLOR_PALETTE_HEX,
     val screenshotDelayMs: Long = 1000L,
     val isLiveCapsuleEnabled: Boolean = false,

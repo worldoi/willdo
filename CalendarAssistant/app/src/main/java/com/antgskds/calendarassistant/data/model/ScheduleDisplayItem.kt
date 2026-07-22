@@ -30,6 +30,7 @@ data class ScheduleDisplayItem(
     val state: Int = 0,         // STATE_PENDING / STATE_COMPLETED / STATE_CHECKED_IN
     val isAllDay: Boolean = false,
     val isRecurringInstance: Boolean = false,  // 展示用：是否属于重复系列
+    val isPermanent: Boolean = false,         // 无结束时间的永久日程
     val timeZone: String = "",
 
     // ── 操作路由 ──

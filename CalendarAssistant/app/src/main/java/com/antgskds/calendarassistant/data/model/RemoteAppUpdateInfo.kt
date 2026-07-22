@@ -5,10 +5,12 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class RemoteAppUpdateInfo(
     val versioncode: Int = 0,
+    val versionName: String = "",
     val versions: List<RemoteAppVersion> = emptyList()
 ) {
     fun isValid(): Boolean {
-        return versioncode > 0 && versions.isNotEmpty()
+        // 支持 Git Releases 模式（按 versionName 比对）与旧的 versioncode 模式
+        return (versioncode > 0 || versionName.isNotBlank()) && versions.isNotEmpty()
     }
 }
 

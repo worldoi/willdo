@@ -341,6 +341,7 @@ class ScheduleCenter(
             rrule = event.rrule,
             reminders = reminders,
             isRecurring = event.isRecurring,
+            noEndTime = event.getIsNoEndTime(),
             eventId = event.id,
             editHint = hint
         )
@@ -671,7 +672,7 @@ class ScheduleCenter(
     // ── Patch 转换工具 ────────────────────────────────────────────
 
     private fun patchToNewEvent(patch: com.antgskds.calendarassistant.data.model.EventPatch): Event {
-        return Event(
+        val event = Event(
             id = null,
             title = patch.title,
             startTS = patch.startTS,
@@ -685,13 +686,15 @@ class ScheduleCenter(
             reminder2Minutes = patch.reminder2Minutes,
             reminder3Minutes = patch.reminder3Minutes
         )
+        event.setIsNoEndTime(patch.noEndTime)
+        return event
     }
 
     private fun applyPatchToEvent(existing: Event, patch: com.antgskds.calendarassistant.data.model.EventPatch): Event {
         val shouldReactivate = (existing.state == STATE_COMPLETED || existing.state == STATE_CHECKED_IN) &&
             patch.endTS >= System.currentTimeMillis() / 1000L
         val shouldRestoreArchived = existing.archivedAt != null && patch.endTS >= System.currentTimeMillis() / 1000L
-        return existing.copy(
+        val updated = existing.copy(
             title = patch.title,
             startTS = patch.startTS,
             endTS = patch.endTS,
@@ -706,6 +709,8 @@ class ScheduleCenter(
             state = if (shouldReactivate) STATE_PENDING else existing.state,
             archivedAt = if (shouldRestoreArchived) null else existing.archivedAt
         )
+        updated.setIsNoEndTime(patch.noEndTime)
+        return updated
     }
 
     private fun hasTimeWindowChanged(before: Event, after: Event): Boolean {

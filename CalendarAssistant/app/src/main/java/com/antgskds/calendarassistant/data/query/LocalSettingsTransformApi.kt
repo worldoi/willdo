@@ -26,6 +26,7 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         autoArchive: Boolean?,
         recognitionMode: Int?,
         defaultEventDurationMinutes: Int?,
+        defaultNoEndTime: Boolean?,
         useMultimodalAi: Boolean?,
         disableThinking: Boolean?,
         localSemanticEnabled: Boolean?,
@@ -87,6 +88,7 @@ class LocalSettingsTransformApi : SettingsTransformApi {
         if (autoArchive != null) updated = updated.copy(autoArchiveEnabled = autoArchive)
         if (recognitionMode != null) updated = updated.copy(recognitionMode = MySettings.normalizeRecognitionMode(recognitionMode))
         if (defaultEventDurationMinutes != null) updated = updated.copy(defaultEventDurationMinutes = defaultEventDurationMinutes)
+        if (defaultNoEndTime != null) updated = updated.copy(defaultNoEndTime = defaultNoEndTime)
         if (useMultimodalAi != null) updated = updated.copy(useMultimodalAi = useMultimodalAi)
         if (disableThinking != null) updated = updated.copy(disableThinking = disableThinking)
         if (localSemanticEnabled != null) updated = updated.copy(isLocalSemanticEnabled = localSemanticEnabled)
