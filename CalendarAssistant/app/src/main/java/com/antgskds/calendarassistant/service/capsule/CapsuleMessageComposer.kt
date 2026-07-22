@@ -51,7 +51,12 @@ object CapsuleMessageComposer {
         isExpired: Boolean,
         templateMode: String = LiveNotificationTemplateMode.AUTO
     ): CapsuleDisplayModel {
-        return EventCapsulePresenter.present(context, event, isExpired, templateMode).displayModel
+        val base = EventCapsulePresenter.present(context, event, isExpired, templateMode).displayModel
+        // 普通日程（未过期）追加「移至随口记」动作，与「已完成」并列显示
+        val moveAction = if (!isExpired) {
+            CapsuleActionSpec(label = "移至随口记", receiverAction = EventActionReceiver.ACTION_MOVE_TO_QUICK_MEMO)
+        } else null
+        return base.copy(actions = listOfNotNull(base.action, moveAction))
     }
 
     fun composePickup(context: Context, event: Event, isExpired: Boolean): CapsuleDisplayModel {

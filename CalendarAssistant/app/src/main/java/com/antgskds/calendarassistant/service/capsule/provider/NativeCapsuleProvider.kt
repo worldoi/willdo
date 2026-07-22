@@ -53,6 +53,11 @@ class NativeCapsuleProvider : ICapsuleProvider {
             .setWhen(System.currentTimeMillis())
             .setShowWhen(true)
 
+        // 日程类胶囊归入同一通知组，便于通知栏折叠成「X条待办日程」
+        if (item.type == CapsuleType.SCHEDULE) {
+            builder.setGroup(GROUP_SCHEDULE_REMINDERS)
+        }
+
         builder.setContentText(
             if (item.type == CapsuleType.QUICK_MEMO_RECORDING) " " else display.secondaryText ?: " "
         )

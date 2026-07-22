@@ -1,9 +1,14 @@
 package com.antgskds.calendarassistant.service.capsule
 
+import android.app.Notification
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import com.antgskds.calendarassistant.App
+import com.antgskds.calendarassistant.MainActivity
+import com.antgskds.calendarassistant.R
 import com.antgskds.calendarassistant.core.query.SettingsQueryApi
 import com.antgskds.calendarassistant.data.model.MySettings
 import com.antgskds.calendarassistant.data.state.CapsuleType
@@ -73,6 +78,9 @@ class CapsuleDispatcher(
             cancelLegacyCapsuleNotification(item)
         }
 
+        // 维护日程胶囊的折叠汇总通知（X条待办日程 + 最新预览）
+        updateScheduleReminderSummary(newCapsules)
+
         // 清理不再需要的通知
         val staleIds = activeNotifIds.toMutableSet()
         staleIds.removeAll(validIds)
@@ -137,8 +145,46 @@ class CapsuleDispatcher(
             .forEach(notificationManager::cancel)
     }
 
+    /**
+     * 维护日程胶囊的折叠汇总通知：所有 SCHEDULE 胶囊归入同组，默认折叠，
+     * 汇总标题显示「X条待办日程」+ 最新1条预览。数量归零时取消汇总。
+     * 子胶囊本身保持 HIGH + 震动（实时提醒优先级不变），汇总静默、不弹窗。
+     */
+    private fun updateScheduleReminderSummary(capsules: List<CapsuleUiState.Active.CapsuleItem>) {
+        val scheduleCaps = capsules.filter { it.type == CapsuleType.SCHEDULE }
+        if (scheduleCaps.isEmpty()) {
+            notificationManager.cancel(NotificationIds.SCHEDULE_REMINDER_GROUP)
+            return
+        }
+        val latest = scheduleCaps.maxByOrNull { it.startMillis }
+        val preview = latest?.display?.primaryText ?: ""
+        val summaryText = if (scheduleCaps.size == 1) preview else "最新：$preview"
+        val summaryIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            context,
+            NotificationIds.SCHEDULE_REMINDER_GROUP,
+            summaryIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val summary = Notification.Builder(context, App.CHANNEL_ID_LIVE)
+            .setSmallIcon(R.drawable.ic_notification_small)
+            .setContentTitle("${scheduleCaps.size}条待办日程")
+            .setContentText(summaryText)
+            .setGroup(GROUP_SCHEDULE_REMINDERS)
+            .setGroupSummary(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(contentIntent)
+            .setShowWhen(false)
+            .setColor(latest?.color ?: 0)
+            .build()
+        notificationManager.notify(NotificationIds.SCHEDULE_REMINDER_GROUP, summary)
+    }
+
     companion object {
         private const val TAG = "CapsuleDispatcher"
         private const val AGGREGATE_PICKUP_ID = "AGGREGATE_PICKUP"
+        private const val GROUP_SCHEDULE_REMINDERS = "calendar_assistant_schedule_reminders"
     }
 }

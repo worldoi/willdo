@@ -547,9 +547,11 @@ class CapsuleStateManager(
         }
 
         val (pickupEntries, scheduleEntries) = activeEntries.partition { isPickupRule(it.event) }
+        // 已「移至随口记」的日程不再生成胶囊（FLAG_MOVED_TO_QUICK_MEMO，区别于已完成）
+        val filteredScheduleEntries = scheduleEntries.filter { !it.event.getIsMovedToQuickMemo() }
         val capsules = mutableListOf<CapsuleUiState.Active.CapsuleItem>()
 
-        scheduleEntries.forEach { entry ->
+        filteredScheduleEntries.forEach { entry ->
             val event = entry.event
             val endDateTime = LocalDateTime.of(event.endDate, LocalTime.parse(event.endTime, TIME_FORMATTER))
             val isExpired = now.isAfter(endDateTime)

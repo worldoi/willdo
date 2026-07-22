@@ -16,6 +16,9 @@ const val FLAG_MISSING_YEAR = 1 shl 2
 const val FLAG_TASK_COMPLETED = 1 shl 3
 // 无结束时间的永久日程标志位（不会过期、不被自动归档）
 const val FLAG_NO_END_TIME = 1 shl 4
+// 已「移至随口记」的日程标志位：标记后不再生成实况胶囊通知，
+// 区别于 FLAG_TASK_COMPLETED（不标记日程为已完成）。
+const val FLAG_MOVED_TO_QUICK_MEMO = 1 shl 5
 // 永久日程的结束时间用「开始时间 + 100 年」的远未来值表示，
 // 这样既不会被归档判断（endTS < beforeTs）误归档，也能在时间窗查询中正常出现。
 const val PERMANENT_END_OFFSET_SEC = 100L * 365 * 24 * 3600L

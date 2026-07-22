@@ -227,9 +227,15 @@ class EventActionReceiver : BroadcastReceiver() {
                     if (desc != null) append("\n$desc")
                 }
                 app.quickMemoCenter.createTextMemo(memoText, asTodo = true)
-                // 清除该条通知（不标记已完成），deleteIntent 会更新折叠分组
+                // 标记已移至随口记（不标记已完成），写回并刷新胶囊状态
+                val updated = event.copy().apply { setIsMovedToQuickMemo(true) }
+                app.scheduleCenter.updateEvent(updated)
+                app.scheduleCenter.refreshEvents()
+                // 清除该条通知（标准通知与实况胶囊两条路径都取消）
                 val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 manager.cancel(NotificationIds.standardReminder(eventIdStr))
+                if (parentId != null) manager.cancel(NotificationIds.liveCapsule(parentId))
+                manager.cancel(NotificationIds.liveCapsule(eventIdStr))
                 showToast(context, "已移至随口记")
                 Log.d(TAG, "moved event to quick memo id=$eventIdStr parentId=$parentId")
             } catch (t: Throwable) {

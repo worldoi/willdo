@@ -55,6 +55,11 @@ data class Event(
         flags = if (value) flags or FLAG_NO_END_TIME else flags and FLAG_NO_END_TIME.inv()
     }
 
+    fun getIsMovedToQuickMemo(): Boolean = flags and FLAG_MOVED_TO_QUICK_MEMO != 0
+    fun setIsMovedToQuickMemo(value: Boolean) {
+        flags = if (value) flags or FLAG_MOVED_TO_QUICK_MEMO else flags and FLAG_MOVED_TO_QUICK_MEMO.inv()
+    }
+
     fun getReminders(): List<Reminder> = listOf(
         Reminder(reminder1Minutes, reminder1Type),
         Reminder(reminder2Minutes, reminder2Type),
